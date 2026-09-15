@@ -288,6 +288,11 @@ button, select, input { font-family: inherit; }
   font-size: 4rem;
   color: rgba(3, 3, 3, 0.12);
 }
+.card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .card__price {
   position: absolute;
   right: 14px;
@@ -415,10 +420,6 @@ button, select, input { font-family: inherit; }
           <label for="genre-select">ジャンル</label>
           <select id="genre-select">
             <option value="all">すべてのジャンル</option>
-            <option value="聖地巡礼">聖地巡礼</option>
-            <option value="グッズ制作">グッズ制作</option>
-            <option value="参戦">参戦</option>
-            <option value="自宅推し活">自宅推し活</option>
           </select>
         </div>
       </div>
@@ -439,167 +440,65 @@ button, select, input { font-family: inherit; }
 
 <script>
 /* ============================================================
-   MOCK DATA (将来: fetch/APIに置き換え)
+   API CLIENT
    ============================================================ */
-const MOCK_POSTS = [
-  {
-    id: "p01",
-    title: "¥480でできる痛バケツ活用聖地巡礼",
-    genre: "聖地巡礼",
-    prefecture: "埼玉県",
-    durationMinutes: 180,
-    budget: 480,
-    description: "アニメの舞台になった商店街を、電車の乗り放題きっぷだけで巡ってきた記録。歩いた距離は約6km。",
-    steps: ["乗り放題きっぷを購入する", "商店街の公式コラボ旗を目印に巡る", "巡礼マップと照らし合わせて撮影する"],
-    note: "商店街の入り口に公式コラボの旗が立っていて写真映えする",
-    images: [],
-    author: { name: "うめ" },
-    postedAt: "2026-09-10",
-    likeCount: 34, liked: false,
-  },
-  {
-    id: "p02",
-    title: "100均だけで手作り応援うちわ",
-    genre: "グッズ制作",
-    prefecture: "大阪府",
-    durationMinutes: 90,
-    budget: 750,
-    description: "文字パネル用のうちわを100均素材だけで自作。夜光シートを貼って暗い会場でも見やすくした。",
-    steps: ["厚紙を台紙にする", "文字を切り抜いて貼る", "夜光シートで縁取りする"],
-    note: "",
-    images: [],
-    author: { name: "かずきんぐ" },
-    postedAt: "2026-09-08",
-    likeCount: 61, liked: true,
-  },
-  {
-    id: "p03",
-    title: "配信同時視聴だけで参戦気分",
-    genre: "自宅推し活",
-    prefecture: "北海道",
-    durationMinutes: 120,
-    budget: 0,
-    description: "遠征できない日は、コメント欄でみんなと実況しながら見る同時視聴配信で十分満足できた。",
-    steps: [],
-    note: "配信開始30分前からコメント欄が盛り上がるので早めの入室がおすすめ",
-    images: [],
-    author: { name: "ka-bon" },
-    postedAt: "2026-09-12",
-    likeCount: 12, liked: false,
-  },
-  {
-    id: "p04",
-    title: "始発高速バスだけで日帰り遠征",
-    genre: "参戦",
-    prefecture: "大阪府",
-    durationMinutes: 480,
-    budget: 9800,
-    description: "宿泊なし、始発の高速バス往復のみで会場入り。前日にグッズを調べて並ぶ時間を短縮した。",
-    steps: ["前日にグッズ列の傾向を調べる", "始発バスを予約する", "日帰りで帰宅する"],
-    note: "",
-    images: [],
-    author: { name: "こうた" },
-    postedAt: "2026-09-05",
-    likeCount: 47, liked: false,
-  },
-  {
-    id: "p05",
-    title: "コンビニ食材だけで推し誕生日ケーキ",
-    genre: "グッズ制作",
-    prefecture: "神奈川県",
-    durationMinutes: 150,
-    budget: 1200,
-    description: "コンビニのスポンジと100均のトッピングだけで再現した、推しカラーの誕生日ケーキ記録。",
-    steps: ["スポンジとクリームを用意する", "推しカラーで着色する", "トッピングで飾り付ける"],
-    note: "",
-    images: [],
-    author: { name: "うめ" },
-    postedAt: "2026-09-01",
-    likeCount: 89, liked: true,
-  },
-  {
-    id: "p06",
-    title: "最寄り駅から徒歩だけで巡る聖地巡礼",
-    genre: "聖地巡礼",
-    prefecture: "岐阜県",
-    durationMinutes: 240,
-    budget: 1500,
-    description: "レンタサイクルもタクシーも使わず、徒歩だけで作中に登場した全スポットを回った記録。",
-    steps: ["巡礼マップを事前に印刷する", "駅から徒歩ルートを組む", "各スポットで聖地写真と見比べる"],
-    note: "夏場は水分補給できる場所を事前に調べておくと安心",
-    images: [],
-    author: { name: "かずきんぐ" },
-    postedAt: "2026-08-28",
-    likeCount: 20, liked: false,
-  },
-  {
-    id: "p07",
-    title: "地元の神社にお参りするだけの推し活",
-    genre: "自宅推し活",
-    prefecture: "京都府",
-    durationMinutes: 60,
-    budget: 300,
-    description: "遠征費をかけずに、地元の神社にお参りして推しの活躍を祈願する絵馬を奉納する推し活。",
-    steps: [],
-    note: "",
-    images: [],
-    author: { name: "ka-bon" },
-    postedAt: "2026-09-13",
-    likeCount: 6, liked: false,
-  },
-  {
-    id: "p08",
-    title: "フリマアプリだけで参戦装備を揃える",
-    genre: "グッズ制作",
-    prefecture: "福岡県",
-    durationMinutes: 30,
-    budget: 2000,
-    description: "フリマアプリの中古ペンライトとタオルだけで、参戦に必要な装備一式を揃えた記録。",
-    steps: ["出品相場を比較する", "状態の良い出品者を選ぶ", "到着後に動作確認する"],
-    note: "",
-    images: [],
-    author: { name: "こうた" },
-    postedAt: "2026-09-03",
-    likeCount: 15, liked: false,
-  },
-  {
-    id: "p09",
-    title: "夜行バス往復で宿泊費ゼロの参戦",
-    genre: "参戦",
-    prefecture: "宮城県",
-    durationMinutes: 420,
-    budget: 6500,
-    description: "夜行バスの往復と日帰り行動で宿泊費をゼロに抑えた参戦記録。移動中はしっかり仮眠した。",
-    steps: ["夜行バスを早割で予約する", "車内で仮眠を取る", "日帰りで会場を後にする"],
-    note: "",
-    images: [],
-    author: { name: "うめ" },
-    postedAt: "2026-08-30",
-    likeCount: 53, liked: true,
-  },
+const API_BASE = "/api";
+const LIKED_STORAGE_KEY = "oshipi:likedPostIds";
+
+const FALLBACK_GENRES = [
+  { key: "pilgrimage", label: "聖地巡礼" },
+  { key: "craft", label: "グッズ制作" },
+  { key: "live", label: "参戦" },
+  { key: "cafe", label: "推しカフェ" },
+  { key: "collection", label: "コレクション" },
+  { key: "home", label: "自宅推し活" },
 ];
 
-/* ============================================================
-   DATA ACCESS LAYER（将来: ここをAPI呼び出しに差し替える）
-   ============================================================ */
-function getAllPosts() {
-  return MOCK_POSTS;
+async function fetchGenres() {
+  try {
+    const res = await fetch(`${API_BASE}/genres`);
+    if (!res.ok) throw new Error(`failed to fetch genres: ${res.status}`);
+    const { genres } = await res.json();
+    return genres;
+  } catch (err) {
+    console.error(err);
+    return FALLBACK_GENRES;
+  }
+}
+
+async function fetchPosts({ keyword, maxBudget, genre }) {
+  const params = new URLSearchParams({ limit: "100" });
+  if (keyword.trim()) params.set("q", keyword.trim());
+  if (genre !== "all") params.set("genre", genre);
+  if (Number.isFinite(maxBudget)) params.set("budgetMax", String(maxBudget));
+
+  const res = await fetch(`${API_BASE}/posts?${params.toString()}`);
+  if (!res.ok) throw new Error(`failed to fetch posts: ${res.status}`);
+  const { posts } = await res.json();
+  return posts;
+}
+
+async function setPostLike(postId, liked) {
+  const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(postId)}/like`, {
+    method: liked ? "POST" : "DELETE",
+  });
+  if (!res.ok) throw new Error(`failed to update like: ${res.status}`);
+  const { likeCount } = await res.json();
+  return likeCount;
 }
 
 /* ============================================================
-   FILTER
+   LIKED POSTS（ローカル記録・二重カウント防止）
    ============================================================ */
-function filterPosts(posts, { keyword, maxBudget, genre }) {
-  const kw = keyword.trim().toLowerCase();
-  return posts.filter((post) => {
-    if (genre !== "all" && post.genre !== genre) return false;
-    if (Number.isFinite(maxBudget) && post.budget > maxBudget) return false;
-    if (kw) {
-      const haystack = `${post.title} ${post.description} ${post.genre} ${post.prefecture}`.toLowerCase();
-      if (!haystack.includes(kw)) return false;
-    }
-    return true;
-  });
+function getLikedIds() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(LIKED_STORAGE_KEY) ?? "[]"));
+  } catch {
+    return new Set();
+  }
+}
+function saveLikedIds(likedIds) {
+  localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify([...likedIds]));
 }
 
 /* ============================================================
@@ -626,7 +525,14 @@ function placeholderClass(index) {
 /* ============================================================
    RENDER
    ============================================================ */
-function renderPostCard(post, index) {
+function updateLikeButton(btn, liked, likeCount) {
+  btn.classList.toggle("is-liked", liked);
+  btn.setAttribute("aria-pressed", String(liked));
+  btn.setAttribute("aria-label", `いいね ${likeCount}件`);
+  btn.innerHTML = `<span aria-hidden="true">${liked ? "❤️" : "🤍"}</span>${likeCount}`;
+}
+
+function renderPostCard(post, index, likedIds) {
   const card = document.createElement("a");
   card.className = "card";
   card.href = `detail/index.html?id=${encodeURIComponent(post.id)}`;
@@ -634,16 +540,25 @@ function renderPostCard(post, index) {
   const media = document.createElement("div");
   media.className = `card__media ${placeholderClass(index)}`;
 
-  const letter = document.createElement("span");
-  letter.className = "card__media-letter";
-  letter.setAttribute("aria-hidden", "true");
-  letter.textContent = post.genre.slice(0, 1);
+  if (post.images && post.images.length > 0) {
+    const img = document.createElement("img");
+    img.src = post.images[0];
+    img.alt = post.title;
+    img.loading = "lazy";
+    media.append(img);
+  } else {
+    const letter = document.createElement("span");
+    letter.className = "card__media-letter";
+    letter.setAttribute("aria-hidden", "true");
+    letter.textContent = post.genreLabel.slice(0, 1);
+    media.append(letter);
+  }
 
   const price = document.createElement("span");
   price.className = "card__price";
   price.textContent = formatBudget(post.budget);
 
-  media.append(letter, price);
+  media.append(price);
 
   const body = document.createElement("div");
   body.className = "card__body";
@@ -654,25 +569,23 @@ function renderPostCard(post, index) {
 
   const meta = document.createElement("p");
   meta.className = "card__meta";
-  meta.textContent = `${post.genre} ・ ${post.prefecture} ・ ${formatDuration(post.durationMinutes)}`;
+  meta.textContent = `${post.genreLabel} ・ ${post.prefecture} ・ ${formatDuration(post.durationMin)}`;
 
   const desc = document.createElement("p");
   desc.className = "card__desc";
-  desc.textContent = post.description;
+  desc.textContent = post.body;
 
   const footer = document.createElement("div");
   footer.className = "card__footer";
 
   const footerText = document.createElement("span");
-  footerText.textContent = `${post.author.name} ・ ${formatDate(post.postedAt)}`;
+  footerText.textContent = `${post.authorName} ・ ${formatDate(post.createdAt)}`;
 
   const likeBtn = document.createElement("button");
   likeBtn.type = "button";
-  likeBtn.className = `card__like-btn${post.liked ? " is-liked" : ""}`;
+  likeBtn.className = "card__like-btn";
   likeBtn.dataset.id = post.id;
-  likeBtn.setAttribute("aria-pressed", String(post.liked));
-  likeBtn.setAttribute("aria-label", `いいね ${post.likeCount}件`);
-  likeBtn.innerHTML = `<span aria-hidden="true">${post.liked ? "❤️" : "🤍"}</span>${post.likeCount}`;
+  updateLikeButton(likeBtn, likedIds.has(post.id), post.likeCount);
 
   footer.append(footerText, likeBtn);
 
@@ -681,7 +594,7 @@ function renderPostCard(post, index) {
   return card;
 }
 
-function renderPostList(posts) {
+function renderPostList(posts, likedIds) {
   const grid = document.getElementById("feed-grid");
   const emptyState = document.getElementById("empty-state");
 
@@ -690,7 +603,18 @@ function renderPostList(posts) {
   emptyState.hidden = !isEmpty;
   grid.hidden = isEmpty;
 
-  posts.forEach((post, index) => grid.appendChild(renderPostCard(post, index)));
+  posts.forEach((post, index) => grid.appendChild(renderPostCard(post, index, likedIds)));
+}
+
+/* ============================================================
+   UTIL
+   ============================================================ */
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
 }
 
 /* ============================================================
@@ -698,23 +622,29 @@ function renderPostList(posts) {
    ============================================================ */
 document.addEventListener("DOMContentLoaded", () => {
   const state = { keyword: "", maxBudget: Infinity, genre: "all" };
+  const likedIds = getLikedIds();
 
   // いいねボタンはカードが再描画されるので、親要素への委任で1つのリスナーだけ使う
-  document.getElementById("feed-grid").addEventListener("click", (e) => {
+  document.getElementById("feed-grid").addEventListener("click", async (e) => {
     const btn = e.target.closest(".card__like-btn");
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
 
-    const post = MOCK_POSTS.find((p) => p.id === btn.dataset.id);
-    if (!post) return;
-    post.liked = !post.liked;
-    post.likeCount += post.liked ? 1 : -1;
+    const postId = btn.dataset.id;
+    const nextLiked = !likedIds.has(postId);
 
-    btn.classList.toggle("is-liked", post.liked);
-    btn.setAttribute("aria-pressed", String(post.liked));
-    btn.setAttribute("aria-label", `いいね ${post.likeCount}件`);
-    btn.innerHTML = `<span aria-hidden="true">${post.liked ? "❤️" : "🤍"}</span>${post.likeCount}`;
+    btn.disabled = true;
+    try {
+      const likeCount = await setPostLike(postId, nextLiked);
+      nextLiked ? likedIds.add(postId) : likedIds.delete(postId);
+      saveLikedIds(likedIds);
+      updateLikeButton(btn, nextLiked, likeCount);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   const keywordInput = document.getElementById("keyword-input");
@@ -722,13 +652,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const genreSelect = document.getElementById("genre-select");
   const resetButton = document.getElementById("reset-filters");
 
-  function applyFilters() {
-    renderPostList(filterPosts(getAllPosts(), state));
+  async function applyFilters() {
+    try {
+      const posts = await fetchPosts(state);
+      renderPostList(posts, likedIds);
+    } catch (err) {
+      console.error(err);
+      renderPostList([], likedIds);
+    }
   }
+  const applyFiltersDebounced = debounce(applyFilters, 300);
 
   keywordInput.addEventListener("input", (event) => {
     state.keyword = event.target.value;
-    applyFilters();
+    applyFiltersDebounced();
   });
 
   chipButtons.forEach((button) => {
@@ -765,6 +702,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     applyFilters();
+  });
+
+  fetchGenres().then((genres) => {
+    genres.forEach(({ key, label }) => {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = label;
+      genreSelect.append(option);
+    });
   });
 
   applyFilters();
