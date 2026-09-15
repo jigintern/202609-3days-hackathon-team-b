@@ -1,8 +1,5 @@
 // レスポンスとリクエスト解釈の共通処理。
 
-/** 認証がないため、ブラウザ側で生成した匿名IDでいいねの重複を防ぐ */
-export const CLIENT_ID_HEADER = "X-Client-Id";
-
 export function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -16,11 +13,6 @@ export function error(message: string, status = 400): Response {
 
 export function noContent(): Response {
   return new Response(null, { status: 204 });
-}
-
-/** X-Client-Id が無いリクエストは「いいね未実施」として扱う */
-export function clientId(request: Request): string {
-  return request.headers.get(CLIENT_ID_HEADER) ?? "";
 }
 
 export function intParam(value: string | null, fallback?: number): number | undefined {

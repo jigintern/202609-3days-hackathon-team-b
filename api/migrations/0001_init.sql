@@ -9,11 +9,13 @@ CREATE TABLE IF NOT EXISTS posts (
   prefecture   TEXT NOT NULL DEFAULT '',
   duration_min INTEGER,
   budget       INTEGER,
-  author_name  TEXT NOT NULL DEFAULT '匿名',
+  author_name  TEXT NOT NULL,
   images       TEXT NOT NULL DEFAULT '[]',
   steps        TEXT NOT NULL DEFAULT '[]',
   materials    TEXT NOT NULL DEFAULT '[]',
   tags         TEXT NOT NULL DEFAULT '[]',
+  -- 認証がないため、いいねは誰が押したかを持たない単純なカウンタにしている
+  like_count   INTEGER NOT NULL DEFAULT 0,
   created_at   TEXT NOT NULL,
   updated_at   TEXT NOT NULL
 );
@@ -22,32 +24,17 @@ CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_genre      ON posts (genre);
 CREATE INDEX IF NOT EXISTS idx_posts_budget     ON posts (budget);
 CREATE INDEX IF NOT EXISTS idx_posts_prefecture ON posts (prefecture);
-
--- 投稿へのいいね
--- 認証がないため client_id（ブラウザ側で生成した匿名ID）で重複を防ぐ
-CREATE TABLE IF NOT EXISTS post_likes (
-  post_id    TEXT NOT NULL REFERENCES posts (id) ON DELETE CASCADE,
-  client_id  TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  PRIMARY KEY (post_id, client_id)
-);
+CREATE INDEX IF NOT EXISTS idx_posts_like_count ON posts (like_count DESC);
 
 -- 行ってきましたレポート
 CREATE TABLE IF NOT EXISTS reports (
   id          TEXT PRIMARY KEY,
-  post_id     TEXT NOT NULL REFERENCES posts (id) ON DELETE CASCADE,
-  author_name TEXT NOT NULL DEFAULT '匿名',
+  post_id     TEXT NOT NULL REFERENCES posts (id),
+  author_name TEXT NOT NULL,
   body        TEXT NOT NULL,
   image_url   TEXT,
+  like_count  INTEGER NOT NULL DEFAULT 0,
   created_at  TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_reports_post_id ON reports (post_id, created_at DESC);
-
--- レポートへのいいね
-CREATE TABLE IF NOT EXISTS report_likes (
-  report_id  TEXT NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
-  client_id  TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  PRIMARY KEY (report_id, client_id)
-);

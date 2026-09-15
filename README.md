@@ -60,20 +60,26 @@ npx wrangler dev
 
 ## 認証について
 
-ログイン機能はありません。いいねの重複を防ぐために、**ブラウザ側で生成した匿名 ID を `X-Client-Id` ヘッダーで送ります**。
+**認証はありません。** ヘッダーもトークンも不要で、どのエンドポイントもそのまま呼べます。
+
+投稿者名（`authorName`）を省略すると、サーバー側で「ゆかいなカワウソ42」のようなランダムな名前が割り当てられます。名前を入力させたい場合だけ `authorName` を送ってください。
+
+いいねは誰が押したかを記録しない単純なカウンタです。そのため**同じ人が何度も押せば増えます**。二重に押させない制御が必要なら、フロント側で `localStorage` に記録してボタンを無効化してください。
 
 ```js
-// 初回アクセス時に生成して localStorage に保存する想定
-let clientId = localStorage.getItem("clientId");
-if (!clientId) {
-  clientId = crypto.randomUUID();
-  localStorage.setItem("clientId", clientId);
+// 押した投稿を覚えておく例
+const liked = new Set(JSON.parse(localStorage.getItem("liked") ?? "[]"));
+
+async function toggleLike(postId) {
+  const method = liked.has(postId) ? "DELETE" : "POST";
+  const res = await fetch(`/api/posts/${postId}/like`, { method });
+  const { likeCount } = await res.json();
+
+  liked.has(postId) ? liked.delete(postId) : liked.add(postId);
+  localStorage.setItem("liked", JSON.stringify([...liked]));
+  return likeCount;
 }
-
-fetch("/api/posts", { headers: { "X-Client-Id": clientId } });
 ```
-
-このヘッダーは、いいね系のエンドポイント（`POST` / `DELETE .../like`）では**必須**です。一覧・詳細の取得では任意ですが、送ると各投稿の `liked`（自分がいいね済みか）が正しく返ります。
 
 ## エンドポイント一覧
 
@@ -152,7 +158,6 @@ curl "https://intern-b.tekitou.app/api/posts?genre=craft&budgetMax=1000&sort=pop
   "materials": ["缶バッジキット(38mm) ×5", "コピー用紙"],
   "tags": ["初心者向け", "100均"],
   "likeCount": 128,
-  "liked": false,
   "reportCount": 2,
   "createdAt": "2026-09-15T05:00:00.000Z",
   "updatedAt": "2026-09-15T05:00:00.000Z"
@@ -173,7 +178,7 @@ curl "https://intern-b.tekitou.app/api/posts?genre=craft&budgetMax=1000&sort=pop
 | `prefecture`  | string   |      | 都道府県名。空文字可                             |
 | `durationMin` | number   |      | 0〜10080（分）                                   |
 | `budget`      | number   |      | 0〜1000000（円）                                 |
-| `authorName`  | string   |      | 20 文字まで。既定は `匿名`                       |
+| `authorName`  | string   |      | 20 文字まで。省略時はランダムな名前を自動生成    |
 | `steps`       | string[] |      | 30 件まで、各 120 文字まで                       |
 | `materials`   | string[] |      | 30 件まで、各 120 文字まで                       |
 | `tags`        | string[] |      | 10 件まで、各 20 文字まで                        |
@@ -181,7 +186,6 @@ curl "https://intern-b.tekitou.app/api/posts?genre=craft&budgetMax=1000&sort=pop
 ```bash
 curl -X POST https://intern-b.tekitou.app/api/posts \
   -H "Content-Type: application/json" \
-  -H "X-Client-Id: $CLIENT_ID" \
   -d '{
     "title": "100均だけで手作り応援うちわ",
     "body": "文字パネル用のうちわを100均素材だけで自作しました。",
@@ -206,17 +210,17 @@ curl -X POST https://intern-b.tekitou.app/api/posts \
 
 ## いいね
 
-`X-Client-Id` ヘッダーが必須です。同じ ID から二重にいいねしても増えません（`INSERT OR IGNORE`）。
+`POST` で +1、`DELETE` で -1 します。0 を下回ることはありません。
 
 ```bash
-curl -X POST https://intern-b.tekitou.app/api/posts/<id>/like -H "X-Client-Id: $CLIENT_ID"
+curl -X POST https://intern-b.tekitou.app/api/posts/<id>/like
 ```
 
 ```json
-{ "postId": "0f9a...", "likeCount": 129, "liked": true }
+{ "postId": "0f9a...", "likeCount": 129 }
 ```
 
-取り消しは同じパスに `DELETE`。レポートへのいいねは `/api/reports/:id/like` で、レスポンスは `reportId` になります。
+レポートへのいいねは `/api/reports/:id/like` で、レスポンスは `reportId` になります。誰が押したかは記録しないので、二重押しの制御はフロント側の担当です。
 
 ## レポート（行ってきましたレポート）
 
@@ -232,7 +236,6 @@ curl -X POST https://intern-b.tekitou.app/api/posts/<id>/like -H "X-Client-Id: $
       "body": "実際に作ってみました！30分で完成しました✨",
       "imageUrl": "/api/images/posts/2026-09-15/yyyy.png",
       "likeCount": 12,
-      "liked": false,
       "createdAt": "2026-09-15T06:00:00.000Z"
     }
   ],
@@ -246,7 +249,7 @@ curl -X POST https://intern-b.tekitou.app/api/posts/<id>/like -H "X-Client-Id: $
 | ------------ | ------ | ---- | -------------------------- |
 | `body`       | string | ✻    | 1〜500 文字                |
 | `imageUrl`   | string |      | `POST /api/images` の戻り値 |
-| `authorName` | string |      | 20 文字まで。既定は `匿名` |
+| `authorName` | string |      | 20 文字まで。省略時はランダムな名前を自動生成 |
 
 ### `DELETE /api/reports/:id`
 
@@ -314,7 +317,7 @@ curl https://intern-b.tekitou.app/api/genres
 | 200    | 成功                                             |
 | 201    | 作成成功（投稿・レポート・画像アップロード）     |
 | 204    | 削除成功（レスポンスボディなし）                 |
-| 400    | リクエストが不正（JSON が壊れている・ヘッダー不足） |
+| 400    | リクエストが不正（JSON が壊れているなど）        |
 | 404    | 対象が存在しない                                 |
 | 405    | メソッドが許可されていない（`Allow` ヘッダー参照） |
 | 413    | 画像が 8MB を超えている                          |
@@ -328,14 +331,27 @@ curl https://intern-b.tekitou.app/api/genres
 
 D1（SQLite）を使います。スキーマは `api/migrations/` にあります。
 
-| テーブル       | 役割                                       |
-| -------------- | ------------------------------------------ |
-| `posts`        | 投稿本体                                   |
-| `post_likes`   | 投稿へのいいね（`post_id` + `client_id`）   |
-| `reports`      | 行ってきましたレポート                     |
-| `report_likes` | レポートへのいいね                         |
+| テーブル  | 役割                   |
+| --------- | ---------------------- |
+| `posts`   | 投稿本体               |
+| `reports` | 行ってきましたレポート |
 
 `images` / `steps` / `materials` / `tags` は JSON 配列テキストとして `posts` に持たせています。タグ検索は SQLite の `json_each` で展開して突き合わせます。
+
+いいねは `posts.like_count` / `reports.like_count` のカウンタです。認証がないため、誰が押したかは保持していません。
+
+## 初期データ
+
+`api/migrations/0002_seed.sql` に各ページのモックデータ（投稿20件・レポート2件）が入っています。マイグレーションを適用すると一緒に投入されます。
+
+投稿の `id` は元のモックのまま（`p01`〜`p09` / `p001`〜`p010` / `p100`）なので、`detail/index.html?id=p001` のような既存リンクがそのまま使えます。
+
+デモ用データが不要になったら、このファイルの中身を消してこう片付けられます。
+
+```sql
+DELETE FROM reports WHERE post_id LIKE 'p%';
+DELETE FROM posts WHERE id LIKE 'p0%' OR id = 'p100';
+```
 
 ## マイグレーションの適用
 
@@ -352,7 +368,7 @@ npx wrangler d1 migrations apply hackathon-team-b --remote
 | ファイル                    | 役割                                     |
 | --------------------------- | ---------------------------------------- |
 | `index.ts`                  | ルーティング（`/api/*` の振り分け）      |
-| `types.ts`                  | 型定義とジャンル・都道府県の定数         |
+| `types.ts`                  | 型定義、ジャンル・都道府県の定数、ランダム名の生成 |
 | `db.ts`                     | D1 アクセス層。SQL はこのファイルにだけ書く |
 | `http.ts`                   | レスポンス生成と入力値の正規化           |
 | `posts.ts`                  | 投稿のハンドラ                           |
@@ -360,5 +376,6 @@ npx wrangler d1 migrations apply hackathon-team-b --remote
 | `images.ts`                 | R2 への画像アップロードと配信            |
 | `meta.ts`                   | ジャンル・都道府県・タグ                 |
 | `migrations/0001_init.sql`  | テーブル定義                             |
+| `migrations/0002_seed.sql`  | 各ページのモックデータ                   |
 
 Happy Hacking! 🚀
