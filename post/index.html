@@ -555,16 +555,18 @@ input:focus, select:focus, textarea:focus {
 
 <script>
   // ------- 定数 -------
-  // ジャンルは search/index.html の定義に合わせる
-  const GENRES = [
+  // ジャンルと都道府県は /api/genres と /api/prefectures から取得する。
+  // API が落ちていても入力できるよう、ここの値をフォールバックに使う。
+  let GENRES = [
     { key: "pilgrimage", label: "聖地巡礼" },
     { key: "craft", label: "グッズ制作" },
     { key: "live", label: "参戦" },
     { key: "cafe", label: "推しカフェ" },
-    { key: "collection", label: "コレクション" }
+    { key: "collection", label: "コレクション" },
+    { key: "home", label: "自宅推し活" }
   ];
 
-  const PREFECTURES = [
+  let PREFECTURES = [
     "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
     "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
     "新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県",
@@ -579,8 +581,10 @@ input:focus, select:focus, textarea:focus {
   // ------- 状態 -------
   const state = {
     genre: "",
-    images: [],  // { name, dataUrl }
-    steps: [""]
+    // dataUrl はプレビュー用、file はアップロード用
+    images: [],  // { name, dataUrl, file }
+    steps: [""],
+    submitting: false
   };
 
   // ------- 要素 -------
@@ -607,6 +611,36 @@ input:focus, select:focus, textarea:focus {
   function renderPrefectures() {
     prefectureEl.insertAdjacentHTML("beforeend",
       PREFECTURES.map(p => `<option value="${p}">${p}</option>`).join(""));
+  }
+
+  // ジャンルと都道府県をサーバーから取り直す。
+  // 失敗してもフォールバックで描画済みなので、黙って諦める。
+  async function loadOptions() {
+    try {
+      const [genresRes, prefsRes] = await Promise.all([
+        fetch("/api/genres"),
+        fetch("/api/prefectures")
+      ]);
+
+      if (genresRes.ok) {
+        const { genres } = await genresRes.json();
+        if (Array.isArray(genres) && genres.length > 0) {
+          GENRES = genres;
+          renderGenres();
+        }
+      }
+
+      if (prefsRes.ok) {
+        const { prefectures } = await prefsRes.json();
+        if (Array.isArray(prefectures) && prefectures.length > 0) {
+          PREFECTURES = prefectures;
+          prefectureEl.innerHTML = '<option value="">選択しない</option>';
+          renderPrefectures();
+        }
+      }
+    } catch (err) {
+      console.warn("選択肢の取得に失敗しました。既定値を使います", err);
+    }
   }
 
   function renderSteps() {
@@ -650,6 +684,8 @@ input:focus, select:focus, textarea:focus {
     if (!titleEl.value.trim() || !bodyEl.value.trim()) missing.push("テキスト");
     if (state.images.length === 0) missing.push("画像");
     if (!state.genre) missing.push("ジャンル");
+
+    if (state.submitting) return;
 
     submitBtn.disabled = missing.length > 0;
     submitStatus.textContent = missing.length > 0
@@ -733,7 +769,7 @@ input:focus, select:focus, textarea:focus {
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = () => {
-        state.images.push({ name: file.name, dataUrl: reader.result });
+        state.images.push({ name: file.name, dataUrl: reader.result, file });
         remaining -= 1;
         if (remaining === 0) {
           renderImages();
@@ -748,36 +784,101 @@ input:focus, select:focus, textarea:focus {
   });
 
   // ------- 送信 -------
-  document.getElementById("postForm").addEventListener("submit", (e) => {
+
+  function setSubmitting(on, message) {
+    state.submitting = on;
+    submitBtn.disabled = on;
+    submitBtn.textContent = on ? "送信中…" : "投稿する";
+    submitStatus.textContent = message ?? "";
+    submitStatus.style.color = "";
+  }
+
+  function showSubmitError(message) {
+    state.submitting = false;
+    submitBtn.disabled = false;
+    submitBtn.textContent = "投稿する";
+    submitStatus.textContent = message;
+    submitStatus.style.color = "var(--danger)";
+  }
+
+  /** API のエラーレスポンスから読めるメッセージを作る */
+  async function errorMessage(res, fallback) {
+    try {
+      const data = await res.json();
+      if (data && typeof data.error === "string") return data.error;
+    } catch {
+      // JSON でないレスポンス（502 など）はそのまま落とす
+    }
+    return `${fallback}（${res.status}）`;
+  }
+
+  /** 画像を1枚ずつ R2 にアップロードして、返ってきた URL を集める */
+  async function uploadImages() {
+    const urls = [];
+
+    for (const [index, image] of state.images.entries()) {
+      setSubmitting(true, `画像を送信中… ${index + 1}/${state.images.length}`);
+
+      const form = new FormData();
+      form.append("file", image.file, image.name);
+
+      const res = await fetch("/api/images", { method: "POST", body: form });
+      if (!res.ok) {
+        throw new Error(await errorMessage(res, `画像「${image.name}」の送信に失敗しました`));
+      }
+
+      const { url } = await res.json();
+      urls.push(url);
+    }
+
+    return urls;
+  }
+
+  document.getElementById("postForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (submitBtn.disabled) return;
+    if (state.submitting || submitBtn.disabled) return;
 
-    const payload = {
-      title: titleEl.value.trim(),
-      body: bodyEl.value.trim(),
-      steps: state.steps.map(s => s.trim()).filter(Boolean),
-      tip: tipEl.value.trim(),
-      images: state.images.map(img => img.dataUrl),
-      genre: state.genre,
-      genreLabel: GENRES.find(g => g.key === state.genre)?.label ?? "",
-      prefecture: prefectureEl.value,
-      durationMin: durationEl.value ? Number(durationEl.value) : null,
-      budget: budgetEl.value ? Number(budgetEl.value) : null
-    };
+    try {
+      const images = await uploadImages();
 
-    // TODO: API (POST /api/posts) ができたらここで送信する
-    console.log("投稿データ", payload);
-    showDone();
+      setSubmitting(true, "投稿を保存中…");
+
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: titleEl.value.trim(),
+          body: bodyEl.value.trim(),
+          steps: state.steps.map(s => s.trim()).filter(Boolean),
+          tip: tipEl.value.trim(),
+          images,
+          genre: state.genre,
+          prefecture: prefectureEl.value,
+          durationMin: durationEl.value ? Number(durationEl.value) : null,
+          budget: budgetEl.value ? Number(budgetEl.value) : null
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(await errorMessage(res, "投稿の保存に失敗しました"));
+      }
+
+      showDone(await res.json());
+    } catch (err) {
+      console.error(err);
+      showSubmitError(err.message ?? "通信に失敗しました。もう一度お試しください");
+    }
   });
 
-  function showDone() {
+  function showDone(post) {
     document.querySelector("main").innerHTML = `
       <div class="done">
         <div class="done__mark" aria-hidden="true">🌟</div>
         <h2>投稿しました！</h2>
-        <p>まだ保存先のAPIがつながっていないため、内容はブラウザのコンソールに出力しています。</p>
+        <p>${escapeAttr(post.authorName)} として公開されました。</p>
         <div class="done__actions">
-          <a class="primary" href="../index.html">トップにもどる</a>
+          <a class="primary" href="../detail/index.html?id=${encodeURIComponent(post.id)}">投稿を見る</a>
+          <a href="../index.html">トップにもどる</a>
           <button type="button" onclick="location.reload()">つづけて投稿する</button>
         </div>
       </div>
@@ -792,6 +893,7 @@ input:focus, select:focus, textarea:focus {
   renderSteps();
   renderImages();
   validate();
+  loadOptions();
 </script>
 
 </body>
