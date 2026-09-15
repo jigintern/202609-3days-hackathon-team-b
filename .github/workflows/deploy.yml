@@ -18,3 +18,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # 既定の wrangler 3 系は wrangler.jsonc を読めないため 4 系を使う
+          wranglerVersion: "4.131.2"
