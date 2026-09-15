@@ -37,7 +37,6 @@ export function toPost(row: PostRow): Post {
     materials: parseJsonArray(row.materials),
     tags: parseJsonArray(row.tags),
     likeCount: Number(row.like_count ?? 0),
-    liked: Boolean(row.liked),
     reportCount: Number(row.report_count ?? 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -52,7 +51,6 @@ export function toReport(row: ReportRow): Report {
     body: row.body,
     imageUrl: row.image_url,
     likeCount: Number(row.like_count ?? 0),
-    liked: Boolean(row.liked),
     createdAt: row.created_at,
   };
 }
@@ -72,14 +70,10 @@ export interface ListPostsOptions {
   sort?: "new" | "old" | "popular" | "budget_asc" | "budget_desc";
   limit: number;
   offset: number;
-  clientId: string;
 }
 
-/** いいね数・レポート数・自分がいいね済みかを含む共通の SELECT */
 const POST_SELECT = `
   SELECT p.*,
-    (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS like_count,
-    (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id AND pl.client_id = ?1) AS liked,
     (SELECT COUNT(*) FROM reports r WHERE r.post_id = p.id) AS report_count
   FROM posts p
 `;
@@ -89,7 +83,7 @@ export async function listPosts(
   opts: ListPostsOptions,
 ): Promise<{ posts: Post[]; total: number }> {
   const where: string[] = [];
-  const params: unknown[] = [opts.clientId];
+  const params: unknown[] = [];
 
   if (opts.q) {
     where.push(`(p.title LIKE ? OR p.body LIKE ? OR p.tip LIKE ? OR p.prefecture LIKE ?)`);
@@ -136,24 +130,21 @@ export async function listPosts(
   const orderSql = {
     new: "ORDER BY p.created_at DESC",
     old: "ORDER BY p.created_at ASC",
-    popular: "ORDER BY like_count DESC, p.created_at DESC",
+    popular: "ORDER BY p.like_count DESC, p.created_at DESC",
     budget_asc: "ORDER BY p.budget IS NULL, p.budget ASC",
     budget_desc: "ORDER BY p.budget IS NULL, p.budget DESC",
   }[opts.sort ?? "new"];
 
-  // ?1 を使うため clientId が先頭。以降の ? は順番に埋まる
   const rows = await env.DB.prepare(
     `${POST_SELECT} ${whereSql} ${orderSql} LIMIT ? OFFSET ?`,
   )
     .bind(...params, opts.limit, opts.offset)
     .all();
 
-  // 件数は clientId を使わないので、WHERE 用のパラメータだけ渡す
-  const countParams = params.slice(1);
   const countRow = await env.DB.prepare(
     `SELECT COUNT(*) AS total FROM posts p ${whereSql}`,
   )
-    .bind(...countParams)
+    .bind(...params)
     .first();
 
   return {
@@ -162,10 +153,8 @@ export async function listPosts(
   };
 }
 
-export async function getPost(env: Env, id: string, clientId: string): Promise<Post | null> {
-  const row = await env.DB.prepare(`${POST_SELECT} WHERE p.id = ?`)
-    .bind(clientId, id)
-    .first();
+export async function getPost(env: Env, id: string): Promise<Post | null> {
+  const row = await env.DB.prepare(`${POST_SELECT} WHERE p.id = ?`).bind(id).first();
   return row ? toPost(row as PostRow) : null;
 }
 
@@ -259,19 +248,12 @@ export async function updatePost(
   return (result.meta?.changes ?? 0) > 0;
 }
 
-export async function deletePost(env: Env, id: string): Promise<boolean> {
-  // ON DELETE CASCADE は D1 の既定で無効なので、子テーブルを明示的に消す
+export async function deletePost(env: Env, id: string): Promise<void> {
+  // 参照制約のために、先に子テーブルを消す
   await env.DB.batch([
-    env.DB.prepare(
-      `DELETE FROM report_likes WHERE report_id IN (SELECT id FROM reports WHERE post_id = ?)`,
-    ).bind(id),
     env.DB.prepare(`DELETE FROM reports WHERE post_id = ?`).bind(id),
-    env.DB.prepare(`DELETE FROM post_likes WHERE post_id = ?`).bind(id),
     env.DB.prepare(`DELETE FROM posts WHERE id = ?`).bind(id),
   ]);
-
-  const row = await env.DB.prepare(`SELECT id FROM posts WHERE id = ?`).bind(id).first();
-  return row === null;
 }
 
 export async function postExists(env: Env, id: string): Promise<boolean> {
@@ -280,91 +262,53 @@ export async function postExists(env: Env, id: string): Promise<boolean> {
 }
 
 // ------------------------------------------------------------
-// いいね（投稿・レポート共通）
+// いいね
 // ------------------------------------------------------------
+// 認証がないので「誰が押したか」は持たない。
+// 二重に押させない制御はフロント側（localStorage など）の担当。
 
-export async function likePost(env: Env, postId: string, clientId: string): Promise<number> {
+/** delta は +1 か -1。0 を下回らないようにする */
+export async function addPostLike(env: Env, postId: string, delta: number): Promise<number> {
   await env.DB.prepare(
-    `INSERT OR IGNORE INTO post_likes (post_id, client_id, created_at) VALUES (?, ?, ?)`,
+    `UPDATE posts SET like_count = MAX(0, like_count + ?) WHERE id = ?`,
   )
-    .bind(postId, clientId, new Date().toISOString())
+    .bind(delta, postId)
     .run();
-  return countPostLikes(env, postId);
-}
 
-export async function unlikePost(env: Env, postId: string, clientId: string): Promise<number> {
-  await env.DB.prepare(`DELETE FROM post_likes WHERE post_id = ? AND client_id = ?`)
-    .bind(postId, clientId)
-    .run();
-  return countPostLikes(env, postId);
-}
-
-async function countPostLikes(env: Env, postId: string): Promise<number> {
-  const row = await env.DB.prepare(
-    `SELECT COUNT(*) AS c FROM post_likes WHERE post_id = ?`,
-  )
+  const row = await env.DB.prepare(`SELECT like_count FROM posts WHERE id = ?`)
     .bind(postId)
     .first();
-  return Number(row?.c ?? 0);
+  return Number(row?.like_count ?? 0);
 }
 
-export async function likeReport(env: Env, reportId: string, clientId: string): Promise<number> {
+export async function addReportLike(env: Env, reportId: string, delta: number): Promise<number> {
   await env.DB.prepare(
-    `INSERT OR IGNORE INTO report_likes (report_id, client_id, created_at) VALUES (?, ?, ?)`,
+    `UPDATE reports SET like_count = MAX(0, like_count + ?) WHERE id = ?`,
   )
-    .bind(reportId, clientId, new Date().toISOString())
+    .bind(delta, reportId)
     .run();
-  return countReportLikes(env, reportId);
-}
 
-export async function unlikeReport(env: Env, reportId: string, clientId: string): Promise<number> {
-  await env.DB.prepare(`DELETE FROM report_likes WHERE report_id = ? AND client_id = ?`)
-    .bind(reportId, clientId)
-    .run();
-  return countReportLikes(env, reportId);
-}
-
-async function countReportLikes(env: Env, reportId: string): Promise<number> {
-  const row = await env.DB.prepare(
-    `SELECT COUNT(*) AS c FROM report_likes WHERE report_id = ?`,
-  )
+  const row = await env.DB.prepare(`SELECT like_count FROM reports WHERE id = ?`)
     .bind(reportId)
     .first();
-  return Number(row?.c ?? 0);
+  return Number(row?.like_count ?? 0);
 }
 
 // ------------------------------------------------------------
 // レポート
 // ------------------------------------------------------------
 
-const REPORT_SELECT = `
-  SELECT r.*,
-    (SELECT COUNT(*) FROM report_likes rl WHERE rl.report_id = r.id) AS like_count,
-    (SELECT COUNT(*) FROM report_likes rl WHERE rl.report_id = r.id AND rl.client_id = ?1) AS liked
-  FROM reports r
-`;
-
-export async function listReports(
-  env: Env,
-  postId: string,
-  clientId: string,
-): Promise<Report[]> {
+export async function listReports(env: Env, postId: string): Promise<Report[]> {
   const rows = await env.DB.prepare(
-    `${REPORT_SELECT} WHERE r.post_id = ? ORDER BY r.created_at DESC`,
+    `SELECT * FROM reports WHERE post_id = ? ORDER BY created_at DESC`,
   )
-    .bind(clientId, postId)
+    .bind(postId)
     .all();
   return (rows.results as ReportRow[]).map(toReport);
 }
 
-export async function getReport(
-  env: Env,
-  id: string,
-  clientId: string,
-): Promise<Report | null> {
-  const row = await env.DB.prepare(`${REPORT_SELECT} WHERE r.id = ?`)
-    .bind(clientId, id)
-    .first();
+export async function getReport(env: Env, id: string): Promise<Report | null> {
+  const row = await env.DB.prepare(`SELECT * FROM reports WHERE id = ?`).bind(id).first();
   return row ? toReport(row as ReportRow) : null;
 }
 
@@ -386,13 +330,8 @@ export async function createReport(env: Env, input: ReportInput): Promise<string
   return id;
 }
 
-export async function deleteReport(env: Env, id: string): Promise<boolean> {
-  await env.DB.batch([
-    env.DB.prepare(`DELETE FROM report_likes WHERE report_id = ?`).bind(id),
-    env.DB.prepare(`DELETE FROM reports WHERE id = ?`).bind(id),
-  ]);
-  const row = await env.DB.prepare(`SELECT id FROM reports WHERE id = ?`).bind(id).first();
-  return row === null;
+export async function deleteReport(env: Env, id: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM reports WHERE id = ?`).bind(id).run();
 }
 
 export async function reportExists(env: Env, id: string): Promise<boolean> {
