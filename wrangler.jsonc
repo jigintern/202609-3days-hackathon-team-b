@@ -18,7 +18,9 @@
 			"binding": "DB",
 			"database_name": "hackathon-team-b",
 			// wrangler d1 create で作成済み
-			"database_id": "8e436965-8f0a-434d-af4e-806b24d9df3e"
+			"database_id": "8e436965-8f0a-434d-af4e-806b24d9df3e",
+			// DB 関連のコードを api/ にまとめるため既定の ./migrations から変更
+			"migrations_dir": "./api/migrations"
 		}
 	],
 	"r2_buckets": [
