@@ -572,6 +572,7 @@
 
 <script>
   // ------- API state -------
+  const API_BASE = "https://intern-b.tekitou.app";
   const postId = new URLSearchParams(location.search).get("id");
   let post = null;
   let reports = [];
@@ -618,10 +619,15 @@
     return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
   }
 
+  function resolveUrl(url) {
+    if (!url) return url;
+    return /^https?:\/\//.test(url) ? url : `${API_BASE}${url}`;
+  }
+
   async function uploadImage(file) {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch("/api/images", { method: "POST", body: formData });
+    const res = await fetch(`${API_BASE}/api/images`, { method: "POST", body: formData });
     if (!res.ok) throw new Error("画像のアップロードに失敗しました");
     return res.json();
   }
@@ -629,13 +635,13 @@
   // ------- Render -------
   function renderGallery() {
     const mainImg = document.getElementById("heroMain");
-    mainImg.src = post.images[activeImageIndex];
+    mainImg.src = resolveUrl(post.images[activeImageIndex]);
     mainImg.alt = escapeHtml(post.title);
 
     const thumbs = document.getElementById("heroThumbs");
     thumbs.style.display = post.images.length > 1 ? "flex" : "none";
     thumbs.innerHTML = post.images.map((src, i) =>
-      `<img src="${src}" class="${i === activeImageIndex ? "active" : ""}" data-index="${i}" alt="サムネイル${i + 1}">`
+      `<img src="${resolveUrl(src)}" class="${i === activeImageIndex ? "active" : ""}" data-index="${i}" alt="サムネイル${i + 1}">`
     ).join("");
 
     thumbs.querySelectorAll("img").forEach(img => {
@@ -689,7 +695,7 @@
         <div class="report-body">
           <div class="report-name">${escapeHtml(r.authorName)}</div>
           <div class="report-text">${escapeHtml(r.body)}</div>
-          ${r.imageUrl ? `<img class="report-image" src="${r.imageUrl}" alt="レポート画像">` : ""}
+          ${r.imageUrl ? `<img class="report-image" src="${resolveUrl(r.imageUrl)}" alt="レポート画像">` : ""}
           <div class="report-footer">
             <button class="report-like-btn ${isLiked ? "liked" : ""}" data-id="${r.id}">
               ${isLiked ? "❤️" : "🤍"} ${r.likeCount}
@@ -706,7 +712,7 @@
     if (!post) return;
     const isLiked = likedPosts.has(post.id);
     try {
-      const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}/like`, {
+      const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(post.id)}/like`, {
         method: isLiked ? "DELETE" : "POST",
       });
       if (!res.ok) throw new Error("いいねに失敗しました");
@@ -745,7 +751,7 @@
     const id = btn.dataset.id;
     const isLiked = likedReports.has(id);
     try {
-      const res = await fetch(`/api/reports/${encodeURIComponent(id)}/like`, {
+      const res = await fetch(`${API_BASE}/api/reports/${encodeURIComponent(id)}/like`, {
         method: isLiked ? "DELETE" : "POST",
       });
       if (!res.ok) throw new Error("いいねに失敗しました");
@@ -790,7 +796,7 @@
         const uploaded = await uploadImage(attachedFile);
         imageUrl = uploaded.url;
       }
-      const res = await fetch(`/api/posts/${encodeURIComponent(postId)}/reports`, {
+      const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(postId)}/reports`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body: text, imageUrl }),
@@ -818,7 +824,7 @@
       return;
     }
     try {
-      const res = await fetch(`/api/posts/${encodeURIComponent(postId)}`);
+      const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(postId)}`);
       if (!res.ok) {
         document.getElementById("postTitle").textContent =
           res.status === 404 ? "投稿が見つかりませんでした" : "投稿の読み込みに失敗しました";
@@ -828,7 +834,7 @@
       renderGallery();
       renderPost();
 
-      const reportsRes = await fetch(`/api/posts/${encodeURIComponent(postId)}/reports`);
+      const reportsRes = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(postId)}/reports`);
       if (reportsRes.ok) {
         const data = await reportsRes.json();
         reports = data.reports;
