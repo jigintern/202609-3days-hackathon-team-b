@@ -22,6 +22,7 @@
   --ink-muted: #5C5C5C;
   --accent: #FFEF6C;
   --line: #E3E3E1;
+  --danger: #D8453B;
 
   --font-display: 'Kiwi Maru', serif;
   --font-body: 'Zen Kaku Gothic New', sans-serif;
@@ -333,6 +334,25 @@ button, select, input { font-family: inherit; }
   border-top: 1px solid var(--line);
   font-size: 0.8rem;
   color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card__like-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.card__like-btn.is-liked {
+  color: var(--danger);
+  font-weight: 700;
 }
 
 /* placeholder media gradients — kept as muted neutrals so the yellow price tag stays the only accent moment */
@@ -435,6 +455,7 @@ const MOCK_POSTS = [
     images: [],
     author: { name: "うめ" },
     postedAt: "2026-09-10",
+    likeCount: 34, liked: false,
   },
   {
     id: "p02",
@@ -449,6 +470,7 @@ const MOCK_POSTS = [
     images: [],
     author: { name: "かずきんぐ" },
     postedAt: "2026-09-08",
+    likeCount: 61, liked: true,
   },
   {
     id: "p03",
@@ -463,6 +485,7 @@ const MOCK_POSTS = [
     images: [],
     author: { name: "ka-bon" },
     postedAt: "2026-09-12",
+    likeCount: 12, liked: false,
   },
   {
     id: "p04",
@@ -477,6 +500,7 @@ const MOCK_POSTS = [
     images: [],
     author: { name: "こうた" },
     postedAt: "2026-09-05",
+    likeCount: 47, liked: false,
   },
   {
     id: "p05",
@@ -491,6 +515,7 @@ const MOCK_POSTS = [
     images: [],
     author: { name: "うめ" },
     postedAt: "2026-09-01",
+    likeCount: 89, liked: true,
   },
   {
     id: "p06",
@@ -505,6 +530,7 @@ const MOCK_POSTS = [
     images: [],
     author: { name: "かずきんぐ" },
     postedAt: "2026-08-28",
+    likeCount: 20, liked: false,
   },
   {
     id: "p07",
@@ -519,6 +545,7 @@ const MOCK_POSTS = [
     images: [],
     author: { name: "ka-bon" },
     postedAt: "2026-09-13",
+    likeCount: 6, liked: false,
   },
   {
     id: "p08",
@@ -533,6 +560,7 @@ const MOCK_POSTS = [
     images: [],
     author: { name: "こうた" },
     postedAt: "2026-09-03",
+    likeCount: 15, liked: false,
   },
   {
     id: "p09",
@@ -547,6 +575,7 @@ const MOCK_POSTS = [
     images: [],
     author: { name: "うめ" },
     postedAt: "2026-08-30",
+    likeCount: 53, liked: true,
   },
 ];
 
@@ -631,9 +660,21 @@ function renderPostCard(post, index) {
   desc.className = "card__desc";
   desc.textContent = post.description;
 
-  const footer = document.createElement("p");
+  const footer = document.createElement("div");
   footer.className = "card__footer";
-  footer.textContent = `${post.author.name} ・ ${formatDate(post.postedAt)}`;
+
+  const footerText = document.createElement("span");
+  footerText.textContent = `${post.author.name} ・ ${formatDate(post.postedAt)}`;
+
+  const likeBtn = document.createElement("button");
+  likeBtn.type = "button";
+  likeBtn.className = `card__like-btn${post.liked ? " is-liked" : ""}`;
+  likeBtn.dataset.id = post.id;
+  likeBtn.setAttribute("aria-pressed", String(post.liked));
+  likeBtn.setAttribute("aria-label", `いいね ${post.likeCount}件`);
+  likeBtn.innerHTML = `<span aria-hidden="true">${post.liked ? "❤️" : "🤍"}</span>${post.likeCount}`;
+
+  footer.append(footerText, likeBtn);
 
   body.append(title, meta, desc, footer);
   card.append(media, body);
@@ -657,6 +698,24 @@ function renderPostList(posts) {
    ============================================================ */
 document.addEventListener("DOMContentLoaded", () => {
   const state = { keyword: "", maxBudget: Infinity, genre: "all" };
+
+  // いいねボタンはカードが再描画されるので、親要素への委任で1つのリスナーだけ使う
+  document.getElementById("feed-grid").addEventListener("click", (e) => {
+    const btn = e.target.closest(".card__like-btn");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const post = MOCK_POSTS.find((p) => p.id === btn.dataset.id);
+    if (!post) return;
+    post.liked = !post.liked;
+    post.likeCount += post.liked ? 1 : -1;
+
+    btn.classList.toggle("is-liked", post.liked);
+    btn.setAttribute("aria-pressed", String(post.liked));
+    btn.setAttribute("aria-label", `いいね ${post.likeCount}件`);
+    btn.innerHTML = `<span aria-hidden="true">${post.liked ? "❤️" : "🤍"}</span>${post.likeCount}`;
+  });
 
   const keywordInput = document.getElementById("keyword-input");
   const chipButtons = Array.from(document.querySelectorAll(".chip"));

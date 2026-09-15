@@ -23,6 +23,7 @@
   --accent: #FFEF6C;
   --accent-dark: #E6D64A;
   --line: #E3E3E1;
+  --danger: #D8453B;
 
   --font-display: 'Kiwi Maru', serif;
   --font-body: 'Zen Kaku Gothic New', sans-serif;
@@ -424,6 +425,25 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   border-top: 1px solid var(--line);
   font-size: 0.8rem;
   color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card__like-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.card__like-btn.is-liked {
+  color: var(--danger);
+  font-weight: 700;
 }
 
 /* placeholder media gradients — muted neutrals so the yellow price tag stays the only accent moment */
@@ -556,6 +576,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       steps: [],
       tags: ["聖地巡礼", "日帰り", "電車移動"],
       author: { name: "ゆき" }, postedAt: "2026-08-10",
+      likeCount: 24, liked: false,
     },
     {
       id: "p002", title: "手作りうちわで参戦準備(文字うちわ制作)",
@@ -566,6 +587,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       steps: ["厚紙を台紙にする", "文字を切り抜いて貼る", "夜光シートで縁取りする"],
       tags: ["うちわ制作", "ハンドメイド", "初心者向け"],
       author: { name: "かずきんぐ" }, postedAt: "2026-08-12",
+      likeCount: 58, liked: true,
     },
     {
       id: "p003", title: "無料の野外イベントで推し活参戦",
@@ -576,6 +598,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       steps: [],
       tags: ["野外イベント", "無料", "参戦"],
       author: { name: "かい" }, postedAt: "2026-08-14",
+      likeCount: 9, liked: false,
     },
     {
       id: "p004", title: "コラボカフェをお得に楽しむ回り方",
@@ -586,6 +609,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       steps: [],
       tags: ["コラボカフェ", "推しカフェ", "ノベルティ"],
       author: { name: "みなと" }, postedAt: "2026-08-15",
+      likeCount: 33, liked: false,
     },
     {
       id: "p005", title: "スマホだけで撮る「祭壇」フォトテク",
@@ -596,6 +620,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       steps: [],
       tags: ["祭壇", "無料", "スマホ撮影"],
       author: { name: "うめ" }, postedAt: "2026-08-16",
+      likeCount: 71, liked: true,
     },
     {
       id: "p006", title: "缶バッジ&アクリルスタンド風グッズ自作",
@@ -606,6 +631,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       steps: ["好きな推しのイラストを印刷する", "缶バッジのテンプレートサイズに切り抜く", "キットのパーツにセットして圧着する"],
       tags: ["グッズ制作", "初心者向け"],
       author: { name: "つむぎ" }, postedAt: "2026-08-17",
+      likeCount: 16, liked: false,
     },
     {
       id: "p007", title: "聖地巡礼+御朱印集めの一日旅",
@@ -616,6 +642,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       steps: [],
       tags: ["聖地巡礼", "御朱印", "神社仏閣"],
       author: { name: "ka-bon" }, postedAt: "2026-08-18",
+      likeCount: 42, liked: false,
     },
     {
       id: "p008", title: "配信ライブを友達と鑑賞会で参戦気分",
@@ -626,6 +653,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       steps: [],
       tags: ["配信ライブ", "参戦", "友達と"],
       author: { name: "こうた" }, postedAt: "2026-08-19",
+      likeCount: 5, liked: false,
     },
     {
       id: "p009", title: "個人店の推し色ドリンクでプチ推し活",
@@ -636,6 +664,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       steps: [],
       tags: ["推しカラー", "推しカフェ"],
       author: { name: "ももこ" }, postedAt: "2026-08-20",
+      likeCount: 27, liked: false,
     },
     {
       id: "p010", title: "100均素材だけの推しぬい服作り",
@@ -646,6 +675,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       steps: ["フェルトを型に合わせて切る", "接着剤で貼り合わせる", "推しぬいに着せて完成"],
       tags: ["推しぬい", "初心者向け", "ハンドメイド"],
       author: { name: "ゆず" }, postedAt: "2026-08-21",
+      likeCount: 63, liked: true,
     },
   ];
 
@@ -801,7 +831,12 @@ input:focus { outline: none; border-color: var(--accent-dark); }
         <h3 class="card__title">${escapeHtml(post.title)}</h3>
         <p class="card__meta">${escapeHtml(post.prefecture)} ・ ${formatDuration(post.durationMin)}${post.steps.length > 0 ? ` ・ 手順${post.steps.length}つ` : ""}</p>
         <p class="card__desc">${escapeHtml(post.tip)}</p>
-        <p class="card__footer">${escapeHtml(post.author.name)} ・ ${formatDate(post.postedAt)}</p>
+        <div class="card__footer">
+          <span>${escapeHtml(post.author.name)} ・ ${formatDate(post.postedAt)}</span>
+          <button type="button" class="card__like-btn${post.liked ? " is-liked" : ""}" data-id="${post.id}" aria-pressed="${post.liked}" aria-label="いいね ${post.likeCount}件">
+            <span aria-hidden="true">${post.liked ? "❤️" : "🤍"}</span>${post.likeCount}
+          </button>
+        </div>
       </div>
     `;
     return card;
@@ -876,11 +911,34 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   }
 
   /* ============================================================
+     LIKE（カードは再描画されるので、親要素への委任で1つのリスナーだけ使う）
+     ============================================================ */
+  function initLikeButton() {
+    document.getElementById("results-grid").addEventListener("click", (e) => {
+      const btn = e.target.closest(".card__like-btn");
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const post = MOCK_POSTS.find((p) => p.id === btn.dataset.id);
+      if (!post) return;
+      post.liked = !post.liked;
+      post.likeCount += post.liked ? 1 : -1;
+
+      btn.classList.toggle("is-liked", post.liked);
+      btn.setAttribute("aria-pressed", String(post.liked));
+      btn.setAttribute("aria-label", `いいね ${post.likeCount}件`);
+      btn.innerHTML = `<span aria-hidden="true">${post.liked ? "❤️" : "🤍"}</span>${post.likeCount}`;
+    });
+  }
+
+  /* ============================================================
      INIT
      ============================================================ */
   renderGenreChips();
   renderTagChips();
   initEvents();
+  initLikeButton();
   applyFilters();
 </script>
 </body>
