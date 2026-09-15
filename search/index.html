@@ -368,6 +368,11 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   font-size: 4rem;
   color: rgba(3, 3, 3, 0.12);
 }
+.card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .card__price {
   position: absolute;
   right: 14px;
@@ -513,13 +518,13 @@ input:focus { outline: none; border-color: var(--accent-dark); }
         </div>
       </fieldset>
 
-      <!-- ジャンルは投稿ページと共有の定義（GENRES）を使用。複数選択でOR絞り込み -->
+      <!-- ジャンル一覧は GET /api/genres から取得。複数選択でOR絞り込み（APIのgenreパラメータに準拠） -->
       <fieldset class="field-group">
         <legend id="genre-legend">ジャンルで絞り込む</legend>
         <div class="chip-group" id="genre-chip-group" role="group" aria-labelledby="genre-legend"></div>
       </fieldset>
 
-      <!-- やりたい分野をハッシュタグ的に追加。複数タグはAND絞り込み -->
+      <!-- やりたい分野をハッシュタグ的に追加。GET /api/posts の tags パラメータに渡す（OR絞り込み） -->
       <div class="field-group">
         <label class="field-group__label" for="tag-input">やりたい分野を追加</label>
         <div class="tag-input-row">
@@ -546,138 +551,47 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       <p>予算やジャンル、やりたい分野を変えて、もう一度探してみてください。</p>
       <button type="button" id="empty-reset-btn">絞り込みをリセット</button>
     </div>
+    <div class="empty-state" id="fetch-error" hidden>
+      <h2>検索結果を取得できませんでした</h2>
+      <p>通信環境をご確認のうえ、もう一度お試しください。</p>
+      <button type="button" id="retry-btn">再試行する</button>
+    </div>
   </section>
 </main>
 
 <script>
   /* ============================================================
-     GENRES（投稿ページ側もこの定義に合わせる）
+     API接続先（本番のオシピ！サーバーに直接リクエストする）
      ============================================================ */
-  const GENRES = [
-    { key: "pilgrimage", label: "聖地巡礼" },
-    { key: "craft", label: "グッズ制作" },
-    { key: "live", label: "参戦" },
-    { key: "cafe", label: "推しカフェ" },
-    { key: "collection", label: "コレクション" },
-  ];
+  const API_BASE = "https://intern-b.tekitou.app";
 
   /* ============================================================
-     MOCK DATA（将来: fetch/APIに置き換え。フィールド構成は投稿ページの
-     送信payload = { title, body, steps, tip, images, genre, genreLabel,
-     prefecture, durationMin, budget } に author/postedAt を足したもの）
+     GENRES（GET /api/genres から取得。取得できるまでは空のまま）
      ============================================================ */
-  const MOCK_POSTS = [
-    {
-      id: "p001", title: "推しの出身地を巡る弾丸聖地巡礼(都内日帰り)",
-      genre: "pilgrimage", genreLabel: "聖地巡礼", prefecture: "東京都",
-      budget: 3000, durationMin: 240,
-      body: "電車移動のみで完結。交通費と軽食代のみで楽しめる推し活ルート。",
-      tip: "近くに聖地カフェがあるので合わせて立ち寄れる",
-      steps: [],
-      tags: ["聖地巡礼", "日帰り", "電車移動"],
-      author: { name: "ゆき" }, postedAt: "2026-08-10",
-      likeCount: 24, liked: false,
-    },
-    {
-      id: "p002", title: "手作りうちわで参戦準備(文字うちわ制作)",
-      genre: "craft", genreLabel: "グッズ制作", prefecture: "大阪府",
-      budget: 1500, durationMin: 120,
-      body: "画用紙・シール・カラーテープのみで完結する低コストの参戦うちわ制作。",
-      tip: "100均素材だけで作れる、初心者向けの手順つき",
-      steps: ["厚紙を台紙にする", "文字を切り抜いて貼る", "夜光シートで縁取りする"],
-      tags: ["うちわ制作", "ハンドメイド", "初心者向け"],
-      author: { name: "かずきんぐ" }, postedAt: "2026-08-12",
-      likeCount: 58, liked: true,
-    },
-    {
-      id: "p003", title: "無料の野外イベントで推し活参戦",
-      genre: "live", genreLabel: "参戦", prefecture: "神奈川県",
-      budget: 800, durationMin: 180,
-      body: "商業施設の無料野外ステージを利用した参戦。手荷物ルールも紹介。",
-      tip: "入場無料、交通費と軽食代のみで楽しめる",
-      steps: [],
-      tags: ["野外イベント", "無料", "参戦"],
-      author: { name: "かい" }, postedAt: "2026-08-14",
-      likeCount: 9, liked: false,
-    },
-    {
-      id: "p004", title: "コラボカフェをお得に楽しむ回り方",
-      genre: "cafe", genreLabel: "推しカフェ", prefecture: "京都府",
-      budget: 2000, durationMin: 150,
-      body: "予約不要のコラボカフェを回るコース。徒歩圏内で完結。",
-      tip: "1店舗500円前後のドリンクでノベルティ狙い",
-      steps: [],
-      tags: ["コラボカフェ", "推しカフェ", "ノベルティ"],
-      author: { name: "みなと" }, postedAt: "2026-08-15",
-      likeCount: 33, liked: false,
-    },
-    {
-      id: "p005", title: "スマホだけで撮る「祭壇」フォトテク",
-      genre: "collection", genreLabel: "コレクション", prefecture: "北海道",
-      budget: 0, durationMin: 90,
-      body: "自然光と100均の小物だけで推しグッズを飾る撮影テクニック集。",
-      tip: "追加費用ゼロ、家にある物だけで映える撮影",
-      steps: [],
-      tags: ["祭壇", "無料", "スマホ撮影"],
-      author: { name: "うめ" }, postedAt: "2026-08-16",
-      likeCount: 71, liked: true,
-    },
-    {
-      id: "p006", title: "缶バッジ&アクリルスタンド風グッズ自作",
-      genre: "craft", genreLabel: "グッズ制作", prefecture: "愛知県",
-      budget: 500, durationMin: 60,
-      body: "自宅プリンターと100均のキーホルダー金具で完結する低コストクラフト。",
-      tip: "推しの描いたイラストを印刷して自作するだけ",
-      steps: ["好きな推しのイラストを印刷する", "缶バッジのテンプレートサイズに切り抜く", "キットのパーツにセットして圧着する"],
-      tags: ["グッズ制作", "初心者向け"],
-      author: { name: "つむぎ" }, postedAt: "2026-08-17",
-      likeCount: 16, liked: false,
-    },
-    {
-      id: "p007", title: "聖地巡礼+御朱印集めの一日旅",
-      genre: "pilgrimage", genreLabel: "聖地巡礼", prefecture: "奈良県",
-      budget: 5500, durationMin: 360,
-      body: "電車とバスを乗り継ぐ巡礼ルート。御朱印帳は事前準備が必要。",
-      tip: "御朱印代を含めても半日で5,000円台に収まる",
-      steps: [],
-      tags: ["聖地巡礼", "御朱印", "神社仏閣"],
-      author: { name: "ka-bon" }, postedAt: "2026-08-18",
-      likeCount: 42, liked: false,
-    },
-    {
-      id: "p008", title: "配信ライブを友達と鑑賞会で参戦気分",
-      genre: "live", genreLabel: "参戦", prefecture: "長野県",
-      budget: 1200, durationMin: 300,
-      body: "持ち寄りの軽食のみで完結する、遠征なしの参戦スタイル。",
-      tip: "配信視聴料を割り勘、会場費ゼロの自宅参戦",
-      steps: [],
-      tags: ["配信ライブ", "参戦", "友達と"],
-      author: { name: "こうた" }, postedAt: "2026-08-19",
-      likeCount: 5, liked: false,
-    },
-    {
-      id: "p009", title: "個人店の推し色ドリンクでプチ推し活",
-      genre: "cafe", genreLabel: "推しカフェ", prefecture: "福岡県",
-      budget: 1800, durationMin: 120,
-      body: "1杯600円前後のカスタムドリンクを推しカラーで楽しむコース。",
-      tip: "推しカラーのドリンクをオーダーメイドできる店を紹介",
-      steps: [],
-      tags: ["推しカラー", "推しカフェ"],
-      author: { name: "ももこ" }, postedAt: "2026-08-20",
-      likeCount: 27, liked: false,
-    },
-    {
-      id: "p010", title: "100均素材だけの推しぬい服作り",
-      genre: "craft", genreLabel: "グッズ制作", prefecture: "北海道",
-      budget: 1000, durationMin: 90,
-      body: "フェルトと接着剤中心で完結する、推しぬい用の裁縫なしクラフト。",
-      tip: "型紙不要、裁縫初心者でも1時間で完成",
-      steps: ["フェルトを型に合わせて切る", "接着剤で貼り合わせる", "推しぬいに着せて完成"],
-      tags: ["推しぬい", "初心者向け", "ハンドメイド"],
-      author: { name: "ゆず" }, postedAt: "2026-08-21",
-      likeCount: 63, liked: true,
-    },
-  ];
+  let GENRES = [];
+
+  /* ============================================================
+     いいね済みの投稿ID（認証がないのでlocalStorageで自分の分だけ覚える）
+     ============================================================ */
+  const LIKED_STORAGE_KEY = "oshipi:likedPostIds";
+
+  function loadLikedPostIds() {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(LIKED_STORAGE_KEY) ?? "[]"));
+    } catch {
+      return new Set();
+    }
+  }
+
+  function saveLikedPostIds(set) {
+    try {
+      localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify([...set]));
+    } catch {
+      /* プライベートブラウジング等でlocalStorageが使えない場合は諦める */
+    }
+  }
+
+  const likedPostIds = loadLikedPostIds();
 
   /* ============================================================
      STATE
@@ -689,6 +603,10 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     tags: [],
   };
 
+  // 検索リクエストは非同期なので、古いレスポンスで新しい結果を
+  // 上書きしないよう、リクエストごとに連番を振って最新だけ反映する
+  let requestSeq = 0;
+
   /* ============================================================
      HELPERS
      ============================================================ */
@@ -699,10 +617,12 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   }
 
   function formatBudget(yen) {
+    if (yen === null || yen === undefined) return "予算未設定";
     return yen === 0 ? "無料" : `¥${yen.toLocaleString("ja-JP")}`;
   }
 
   function formatDuration(min) {
+    if (min === null || min === undefined) return null;
     const h = Math.floor(min / 60);
     const m = min % 60;
     if (h && m) return `${h}時間${m}分`;
@@ -790,23 +710,61 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   }
 
   /* ============================================================
-     FILTER
+     API
      ============================================================ */
-  function matchesFilters(post) {
-    const { budgetMin, budgetMax, genres, tags } = filterState;
-    if (budgetMin !== null && post.budget < budgetMin) return false;
-    if (budgetMax !== null && post.budget > budgetMax) return false;
-    if (genres.size > 0 && !genres.has(post.genre)) return false;
-    if (tags.length > 0) {
-      const haystack = `${post.title} ${post.tip} ${post.body} ${post.tags.join(" ")}`.toLowerCase();
-      const matchesAllTags = tags.every((t) => haystack.includes(t.toLowerCase()));
-      if (!matchesAllTags) return false;
+  async function fetchGenres() {
+    try {
+      const res = await fetch(`${API_BASE}/api/genres`);
+      if (!res.ok) throw new Error(`ジャンル一覧の取得に失敗しました (${res.status})`);
+      const data = await res.json();
+      GENRES = data.genres ?? [];
+    } catch (err) {
+      console.error(err);
+      // ジャンル一覧が取れなくても、予算・タグでの検索は続行できるようにする
+      GENRES = [];
     }
-    return true;
+    renderGenreChips();
   }
 
-  function applyFilters() {
-    render(MOCK_POSTS.filter(matchesFilters));
+  function buildSearchParams() {
+    const params = new URLSearchParams();
+    if (filterState.budgetMin !== null) params.set("budgetMin", String(filterState.budgetMin));
+    if (filterState.budgetMax !== null) params.set("budgetMax", String(filterState.budgetMax));
+    if (filterState.genres.size > 0) params.set("genre", [...filterState.genres].join(","));
+    if (filterState.tags.length > 0) params.set("tags", filterState.tags.join(","));
+    params.set("limit", "100"); // ページングUIが無いので、上限いっぱいまで一度に取得する
+    return params;
+  }
+
+  /* ============================================================
+     FILTER / FETCH
+     ============================================================ */
+  async function applyFilters() {
+    const seq = ++requestSeq;
+    const grid = document.getElementById("results-grid");
+    const emptyState = document.getElementById("empty-state");
+    const fetchError = document.getElementById("fetch-error");
+    const countEl = document.getElementById("results-count");
+
+    emptyState.hidden = true;
+    fetchError.hidden = true;
+    countEl.textContent = "検索中…";
+
+    try {
+      const res = await fetch(`${API_BASE}/api/posts?${buildSearchParams().toString()}`);
+      if (seq !== requestSeq) return; // 後から送った検索の結果だけを反映する
+      if (!res.ok) throw new Error(`検索に失敗しました (${res.status})`);
+      const data = await res.json();
+      if (seq !== requestSeq) return;
+      render(data);
+    } catch (err) {
+      if (seq !== requestSeq) return;
+      console.error(err);
+      grid.innerHTML = "";
+      grid.hidden = true;
+      countEl.textContent = "";
+      fetchError.hidden = false;
+    }
   }
 
   /* ============================================================
@@ -821,20 +779,32 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       `${post.title}、${post.genreLabel}、予算${formatBudget(post.budget)}の詳細を見る`
     );
 
+    const durationText = formatDuration(post.durationMin);
+    const metaParts = [
+      post.prefecture || null,
+      durationText,
+      post.steps.length > 0 ? `手順${post.steps.length}つ` : null,
+    ].filter(Boolean);
+
+    const thumbImage = post.images && post.images[0];
+    const liked = likedPostIds.has(post.id);
+
     card.innerHTML = `
-      <div class="card__media ${placeholderClass(index)}">
-        <span class="card__media-letter" aria-hidden="true">${escapeHtml(post.genreLabel.slice(0, 1))}</span>
+      <div class="card__media ${thumbImage ? "" : placeholderClass(index)}">
+        ${thumbImage
+          ? `<img src="${escapeHtml(thumbImage)}" alt="${escapeHtml(post.title)}">`
+          : `<span class="card__media-letter" aria-hidden="true">${escapeHtml(post.genreLabel.slice(0, 1))}</span>`}
         <span class="card__price">${formatBudget(post.budget)}</span>
       </div>
       <div class="card__body">
         <span class="card__genre-badge">${escapeHtml(post.genreLabel)}</span>
         <h3 class="card__title">${escapeHtml(post.title)}</h3>
-        <p class="card__meta">${escapeHtml(post.prefecture)} ・ ${formatDuration(post.durationMin)}${post.steps.length > 0 ? ` ・ 手順${post.steps.length}つ` : ""}</p>
-        <p class="card__desc">${escapeHtml(post.tip)}</p>
+        <p class="card__meta">${escapeHtml(metaParts.join(" ・ "))}</p>
+        <p class="card__desc">${escapeHtml(post.tip || post.body)}</p>
         <div class="card__footer">
-          <span>${escapeHtml(post.author.name)} ・ ${formatDate(post.postedAt)}</span>
-          <button type="button" class="card__like-btn${post.liked ? " is-liked" : ""}" data-id="${post.id}" aria-pressed="${post.liked}" aria-label="いいね ${post.likeCount}件">
-            <span aria-hidden="true">${post.liked ? "❤️" : "🤍"}</span>${post.likeCount}
+          <span>${escapeHtml(post.authorName)} ・ ${formatDate(post.createdAt)}</span>
+          <button type="button" class="card__like-btn${liked ? " is-liked" : ""}" data-id="${post.id}" aria-pressed="${liked}" aria-label="いいね ${post.likeCount}件">
+            <span aria-hidden="true">${liked ? "❤️" : "🤍"}</span>${post.likeCount}
           </button>
         </div>
       </div>
@@ -842,17 +812,20 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     return card;
   }
 
-  function render(posts) {
+  function render(data) {
     const grid = document.getElementById("results-grid");
     const emptyState = document.getElementById("empty-state");
     const countEl = document.getElementById("results-count");
 
     grid.innerHTML = "";
-    posts.forEach((post, index) => grid.appendChild(renderCard(post, index)));
+    data.posts.forEach((post, index) => grid.appendChild(renderCard(post, index)));
 
-    countEl.textContent = `${posts.length}件見つかりました`;
-    emptyState.hidden = posts.length > 0;
-    grid.hidden = posts.length === 0;
+    const isEmpty = data.posts.length === 0;
+    countEl.textContent = data.hasMore
+      ? `${data.total}件中${data.posts.length}件を表示中`
+      : `${data.total}件見つかりました`;
+    emptyState.hidden = !isEmpty;
+    grid.hidden = isEmpty;
   }
 
   /* ============================================================
@@ -908,37 +881,55 @@ input:focus { outline: none; border-color: var(--accent-dark); }
 
     document.getElementById("reset-btn").addEventListener("click", resetFilters);
     document.getElementById("empty-reset-btn").addEventListener("click", resetFilters);
+    document.getElementById("retry-btn").addEventListener("click", applyFilters);
   }
 
   /* ============================================================
-     LIKE（カードは再描画されるので、親要素への委任で1つのリスナーだけ使う）
+     LIKE（POST/DELETE /api/posts/:id/like を叩く。誰が押したかは
+     サーバー側で持たないので、自分が押したかどうかはlocalStorageで管理する。
+     カードは再描画されるので、親要素への委任で1つのリスナーだけ使う）
      ============================================================ */
   function initLikeButton() {
-    document.getElementById("results-grid").addEventListener("click", (e) => {
+    document.getElementById("results-grid").addEventListener("click", async (e) => {
       const btn = e.target.closest(".card__like-btn");
-      if (!btn) return;
+      if (!btn || btn.disabled) return;
       e.preventDefault();
       e.stopPropagation();
 
-      const post = MOCK_POSTS.find((p) => p.id === btn.dataset.id);
-      if (!post) return;
-      post.liked = !post.liked;
-      post.likeCount += post.liked ? 1 : -1;
+      const postId = btn.dataset.id;
+      const wasLiked = likedPostIds.has(postId);
+      const method = wasLiked ? "DELETE" : "POST";
 
-      btn.classList.toggle("is-liked", post.liked);
-      btn.setAttribute("aria-pressed", String(post.liked));
-      btn.setAttribute("aria-label", `いいね ${post.likeCount}件`);
-      btn.innerHTML = `<span aria-hidden="true">${post.liked ? "❤️" : "🤍"}</span>${post.likeCount}`;
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(postId)}/like`, { method });
+        if (!res.ok) throw new Error(`いいねに失敗しました (${res.status})`);
+        const data = await res.json();
+
+        if (wasLiked) likedPostIds.delete(postId);
+        else likedPostIds.add(postId);
+        saveLikedPostIds(likedPostIds);
+
+        const nowLiked = likedPostIds.has(postId);
+        btn.classList.toggle("is-liked", nowLiked);
+        btn.setAttribute("aria-pressed", String(nowLiked));
+        btn.setAttribute("aria-label", `いいね ${data.likeCount}件`);
+        btn.innerHTML = `<span aria-hidden="true">${nowLiked ? "❤️" : "🤍"}</span>${data.likeCount}`;
+      } catch (err) {
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+      }
     });
   }
 
   /* ============================================================
      INIT
      ============================================================ */
-  renderGenreChips();
   renderTagChips();
   initEvents();
   initLikeButton();
+  fetchGenres();
   applyFilters();
 </script>
 </body>
