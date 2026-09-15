@@ -3,805 +3,880 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>予算で探す | 推し活シェア</title>
+<title>推し活レシピを探す | オシピ！</title>
+<meta name="description" content="予算やジャンルでしぼりこんで、みんなの推し活レシピ（投稿）を探せる「オシピ！」の検索ページ">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+
 <style>
-  /* ===== 1. デザイントークン ===== */
-  :root {
-    /* アクセント（黄色） */
-    --color-accent: #FFEF6C;
-    --color-accent-dark: #E6D64A;
-    --color-accent-text: #4A4520;
+/* ============================================================
+   TOKENS（トップページ・投稿ページと共通）
+   ============================================================ */
+:root {
+  --bg: #F7F7F7;
+  --surface: #FFFFFF;
+  --ink: #030303;
+  --ink-muted: #5C5C5C;
+  --accent: #FFEF6C;
+  --accent-dark: #E6D64A;
+  --line: #E3E3E1;
 
-    /* ニュートラル */
-    --color-bg: #FAFAF6;
-    --color-surface: #FFFFFF;
-    --color-border: #E7E6DF;
-    --color-text-primary: #1F1F1D;
-    --color-text-secondary: #6B6B62;
-    --color-text-muted: #9C9C90;
+  --font-display: 'Kiwi Maru', serif;
+  --font-body: 'Zen Kaku Gothic New', sans-serif;
 
-    /* フォーカス（アクセント黄色は使わない） */
-    --color-focus-ring: #3B7DD8;
+  --container-w: 1200px;
+  --gutter: clamp(16px, 4vw, 48px);
+}
 
-    /* 形状 */
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 20px;
-    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-card-hover: 0 8px 20px rgba(0, 0, 0, 0.10);
+/* ============================================================
+   BASE / RESET
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+button, select, input, textarea { font-family: inherit; }
 
-    /* スペーシング */
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 24px;
-    --space-6: 32px;
-    --space-8: 48px;
+*:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
 
-    /* タイポグラフィ */
-    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN",
-      "Hiragino Sans", Meiryo, sans-serif;
-    --fs-sm: 0.8125rem;
-    --fs-base: 1rem;
-    --fs-md: 1.125rem;
-    --fs-lg: 1.375rem;
-    --fs-xl: 1.75rem;
-  }
+.container {
+  max-width: var(--container-w);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
 
-  /* ===== 2. リセット / 基本スタイル ===== */
-  * {
-    box-sizing: border-box;
-  }
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
-  body {
-    margin: 0;
-    font-family: var(--font-family);
-    background: var(--color-bg);
-    color: var(--color-text-primary);
-    font-size: var(--fs-base);
-    line-height: 1.6;
-  }
+/* ============================================================
+   HEADER
+   ============================================================ */
+.site-header {
+  border-bottom: 1px solid var(--line);
+}
+.site-header .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 18px;
+}
+.site-logo {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.5rem;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+.btn-primary {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  padding: 0.7em 1.4em;
+  border-radius: 10px;
+  transition: opacity 0.15s ease;
+}
+.btn-primary:hover { opacity: 0.82; }
 
-  h1, h2, h3 {
-    margin: 0;
-  }
+/* ============================================================
+   PAGE INTRO
+   ============================================================ */
+.page-intro {
+  padding-block: clamp(24px, 5vw, 40px) 0;
+}
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(1.4rem, 3.5vw, 1.9rem);
+  margin: 0;
+}
+.page-lead {
+  margin: 8px 0 0;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  max-width: 46ch;
+}
 
-  ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.layout {
+  padding-block: 24px 64px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
 
-  button {
-    font-family: inherit;
-    cursor: pointer;
-  }
+/* ============================================================
+   FILTER PANEL
+   ============================================================ */
+.filter-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  align-self: start;
+}
 
-  input {
-    font-family: inherit;
-    font-size: var(--fs-base);
-  }
+.filter-panel .field-group {
+  margin: 0 0 20px;
+}
+.filter-panel .field-group:last-of-type {
+  margin-bottom: 0;
+}
 
-  a {
-    color: inherit;
-    text-decoration: none;
-  }
+.filter-panel legend,
+.filter-panel .field-group__label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
 
-  :focus-visible {
-    outline: 2px solid var(--color-focus-ring);
-    outline-offset: 2px;
-  }
+fieldset { border: none; padding: 0; margin: 0; }
 
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
+.budget-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.budget-field {
+  flex: 1 1 100px;
+  min-width: 0;
+}
+.budget-field label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  margin-bottom: 4px;
+}
+.budget-sep {
+  color: var(--ink-muted);
+  padding-top: 18px;
+}
 
-  /* ===== 3. レイアウト ===== */
-  .page-header {
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
-    padding: var(--space-4) var(--space-5);
-  }
+input[type="text"],
+input[type="number"] {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0.6em 0.75em;
+  font-size: 0.9rem;
+}
+input:focus { outline: none; border-color: var(--accent-dark); }
 
-  .page-header h1 {
-    font-size: var(--fs-lg);
-  }
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.85rem;
+  padding: 0.5em 1.1em;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent-dark);
+  font-weight: 700;
+}
 
-  .page-header .logo-accent {
-    color: var(--color-accent-text);
-    background: var(--color-accent);
-    padding: 0 var(--space-2);
-    border-radius: var(--radius-sm);
-  }
+.tag-input-row {
+  display: flex;
+  gap: 8px;
+}
+.tag-input-row input { flex: 1; min-width: 0; }
 
-  .container {
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: var(--space-5);
-  }
+.tag-chip-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.3em 0.4em 0.3em 0.9em;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.tag-chip button {
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0.3em;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.tag-chip button:hover { background: rgba(3, 3, 3, 0.08); }
 
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.filter-actions .btn {
+  flex: 1;
+  white-space: nowrap;
+  border-radius: 10px;
+  padding: 0.75em 1em;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.btn-search {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: var(--accent-dark);
+}
+.btn-search:hover { background: var(--accent-dark); }
+.btn-clear {
+  background: var(--surface);
+  color: var(--ink-muted);
+  border-color: var(--line);
+}
+.btn-clear:hover { border-color: var(--ink-muted); }
+
+/* ============================================================
+   RESULTS
+   ============================================================ */
+.results-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.results-header h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.15rem;
+  margin: 0;
+}
+#results-count {
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+.empty-state {
+  padding-block: 48px;
+  max-width: 42ch;
+}
+.empty-state h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.2rem;
+  margin: 0 0 8px;
+}
+.empty-state p {
+  color: var(--ink-muted);
+  margin: 0 0 16px;
+}
+.empty-state button {
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  padding: 0.6em 1.3em;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* ============================================================
+   CARD（トップページと共通のコンポーネント）
+   ============================================================ */
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  overflow: visible;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card:hover, .card:focus-visible {
+  transform: translateY(-4px);
+}
+
+.card__media {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px 14px 0 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card__media-letter {
+  font-family: var(--font-display);
+  font-size: 4rem;
+  color: rgba(3, 3, 3, 0.12);
+}
+.card__price {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  background: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0.4em 0.9em 0.4em 1.15em;
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%);
+}
+
+.card__body {
+  padding: 24px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.card__genre-badge {
+  display: inline-block;
+  align-self: flex-start;
+  background: var(--accent);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2em 0.8em;
+  border-radius: 999px;
+}
+.card__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 0;
+}
+.card__meta {
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+  margin: 0;
+}
+.card__desc {
+  font-size: 0.9rem;
+  margin: 0;
+  opacity: 0.85;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card__footer {
+  margin: auto 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+/* placeholder media gradients — muted neutrals so the yellow price tag stays the only accent moment */
+.ph-1 { background: linear-gradient(135deg, #EDEBE4, #DFDCD2); }
+.ph-2 { background: linear-gradient(135deg, #E9E6DE, #D8D3C6); }
+.ph-3 { background: linear-gradient(135deg, #E7E4DD, #D3CFC3); }
+.ph-4 { background: linear-gradient(135deg, #ECE9E2, #DAD6CB); }
+.ph-5 { background: linear-gradient(135deg, #E5E2DA, #D6D1C4); }
+
+/* ============================================================
+   RESPONSIVE / MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .card, .btn-primary, .chip { transition: none; }
+}
+
+@media (min-width: 640px) {
+  .budget-row { flex-wrap: nowrap; }
+}
+
+@media (min-width: 1024px) {
   .layout {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-6);
+    grid-template-columns: 260px 1fr;
+    align-items: start;
   }
-
-  /* ===== 4. フィルターパネル ===== */
   .filter-panel {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-5);
-    box-shadow: var(--shadow-card);
-    align-self: start;
+    position: sticky;
+    top: 24px;
   }
+}
 
-  .filter-panel h2 {
-    font-size: var(--fs-md);
-    margin-bottom: var(--space-4);
-  }
-
-  fieldset {
-    border: none;
-    padding: 0;
-    margin: 0 0 var(--space-5) 0;
-  }
-
-  legend {
-    font-weight: 700;
-    font-size: var(--fs-sm);
-    color: var(--color-text-secondary);
-    padding: 0 0 var(--space-2) 0;
-  }
-
-  .field-label {
-    display: block;
-    font-size: var(--fs-sm);
-    color: var(--color-text-secondary);
-    margin-bottom: var(--space-1);
-  }
-
-  .budget-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-
-  .budget-field {
-    flex: 1 1 100px;
-    min-width: 0;
-  }
-
-  .budget-field input {
-    width: 100%;
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    background: var(--color-bg);
-  }
-
-  .budget-sep {
-    color: var(--color-text-muted);
-    padding-top: var(--space-4);
-  }
-
-  /* ジャンルチップ (余裕があれば実装) */
-  .chip-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-  }
-
-  .chip {
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text-primary);
-    border-radius: 999px;
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--fs-sm);
-    transition: background 0.15s ease, border-color 0.15s ease;
-  }
-
-  .chip:hover {
-    border-color: var(--color-accent-dark);
-  }
-
-  .chip[aria-pressed="true"] {
-    background: var(--color-accent);
-    border-color: var(--color-accent-dark);
-    color: var(--color-accent-text);
-    font-weight: 700;
-  }
-
-  /* タグ入力 (余裕があれば実装) */
-  .tag-input-row {
-    display: flex;
-    gap: var(--space-2);
-  }
-
-  .tag-input-row input {
-    flex: 1;
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    background: var(--color-bg);
-  }
-
-  .tag-chip-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-top: var(--space-3);
-  }
-
-  .tag-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    background: var(--color-accent);
-    color: var(--color-accent-text);
-    border-radius: 999px;
-    padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
-    font-size: var(--fs-sm);
-    font-weight: 700;
-  }
-
-  .tag-chip button {
-    background: transparent;
-    border: none;
-    color: var(--color-accent-text);
-    font-size: var(--fs-base);
-    line-height: 1;
-    padding: var(--space-1);
-    border-radius: 50%;
-  }
-
-  .tag-chip button:hover {
-    background: rgba(0, 0, 0, 0.08);
-  }
-
-  .filter-actions {
-    display: flex;
-    gap: var(--space-3);
-    margin-top: var(--space-2);
-  }
-
-  .btn {
-    border-radius: var(--radius-sm);
-    padding: var(--space-3) var(--space-4);
-    font-size: var(--fs-base);
-    font-weight: 700;
-    border: 1px solid transparent;
-    white-space: nowrap;
-    flex: 1;
-  }
-
-  .btn-primary {
-    background: var(--color-accent);
-    color: var(--color-accent-text);
-    border-color: var(--color-accent-dark);
-  }
-
-  .btn-primary:hover {
-    background: var(--color-accent-dark);
-  }
-
-  .btn-secondary {
-    background: var(--color-surface);
-    color: var(--color-text-secondary);
-    border-color: var(--color-border);
-  }
-
-  .btn-secondary:hover {
-    border-color: var(--color-text-muted);
-  }
-
-  /* ===== 5. 結果エリア ===== */
-  .results-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: var(--space-4);
-  }
-
-  .results-header h2 {
-    font-size: var(--fs-md);
-  }
-
-  #results-count {
-    color: var(--color-text-secondary);
-    font-size: var(--fs-sm);
-    margin: 0;
-  }
-
-  .results-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: var(--space-5);
-  }
-
-  .empty-state {
-    text-align: center;
-    color: var(--color-text-secondary);
-    padding: var(--space-8) var(--space-4);
-    background: var(--color-surface);
-    border: 1px dashed var(--color-border);
-    border-radius: var(--radius-lg);
-  }
-
-  /* ===== 6. カード ===== */
-  .post-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-card);
-    overflow: hidden;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    height: 100%;
-  }
-
-  .post-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-card-hover);
-  }
-
-  .post-card__link {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  /* ===== 7. プレースホルダー画像 ===== */
-  .post-card__thumb {
-    aspect-ratio: 16 / 9;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-  }
-
-  .post-card__body {
-    padding: var(--space-4);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    flex: 1;
-  }
-
-  .badge {
-    display: inline-block;
-    align-self: flex-start;
-    background: var(--color-accent);
-    color: var(--color-accent-text);
-    font-size: var(--fs-sm);
-    font-weight: 700;
-    padding: var(--space-1) var(--space-3);
-    border-radius: 999px;
-  }
-
-  .post-card__title {
-    font-size: var(--fs-md);
-    line-height: 1.4;
-  }
-
-  .post-card__teaser {
-    color: var(--color-text-secondary);
-    font-size: var(--fs-sm);
-    margin: 0;
-    flex: 1;
-  }
-
-  .post-card__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1) var(--space-4);
-    font-size: var(--fs-sm);
-    color: var(--color-text-secondary);
-    border-top: 1px solid var(--color-border);
-    padding-top: var(--space-3);
-    margin-top: var(--space-2);
-  }
-
-  .post-card__meta li {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-  }
-
-  .post-card__meta .meta-budget {
-    color: var(--color-text-primary);
-    font-weight: 700;
-  }
-
-  /* ===== 8. レスポンシブ ===== */
-  @media (min-width: 640px) {
-    .budget-row {
-      flex-wrap: nowrap;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .layout {
-      grid-template-columns: 280px 1fr;
-      align-items: start;
-    }
-
-    .filter-panel {
-      position: sticky;
-      top: var(--space-5);
-    }
-  }
+@media (max-width: 480px) {
+  .site-logo { font-size: 1.3rem; }
+}
 </style>
 </head>
 <body>
-  <header class="page-header">
-    <h1><span class="logo-accent">推し活</span>シェア</h1>
-  </header>
 
-  <main class="container">
-    <div class="layout">
-      <section class="filter-panel" aria-labelledby="filter-heading">
-        <h2 id="filter-heading">予算で探す</h2>
-        <form id="search-form">
-          <fieldset>
-            <legend>予算で絞り込む</legend>
-            <div class="budget-row">
-              <div class="budget-field">
-                <label class="field-label" for="budget-min">最低 (円)</label>
-                <input type="number" id="budget-min" name="budgetMin" min="0" step="100" placeholder="0" inputmode="numeric">
-              </div>
-              <span class="budget-sep" aria-hidden="true">〜</span>
-              <div class="budget-field">
-                <label class="field-label" for="budget-max">最高 (円)</label>
-                <input type="number" id="budget-max" name="budgetMax" min="0" step="100" placeholder="上限なし" inputmode="numeric">
-              </div>
-            </div>
-          </fieldset>
+<header class="site-header">
+  <div class="container">
+    <a class="site-logo" href="../index.html">オシピ！</a>
+    <a class="btn-primary" href="../post/index.html">投稿する</a>
+  </div>
+</header>
 
-          <!-- NICE-TO-HAVE: ジャンルで絞り込む。バックエンド接続時は投稿データのgenreフィールドと連携する -->
-          <fieldset>
-            <legend id="genre-legend">ジャンルで絞り込む</legend>
-            <div class="chip-group" id="genre-chip-group" role="group" aria-labelledby="genre-legend"></div>
-          </fieldset>
+<section class="page-intro container">
+  <h1 class="page-title">予算・ジャンルで推し活レシピを探す</h1>
+  <p class="page-lead">気になる条件でしぼりこんで、みんなの推し活のアイデアと工夫を見つけよう。</p>
+</section>
 
-          <!-- NICE-TO-HAVE: やりたい分野をハッシュタグ的に指定。バックエンド接続時は本文中のタグ検索APIに置き換える -->
-          <fieldset>
-            <legend>やりたい分野を追加</legend>
-            <div class="tag-input-row">
-              <label for="tag-input" class="sr-only">やりたい分野を入力してEnterで追加</label>
-              <input type="text" id="tag-input" placeholder="例: 写真, 手作り">
-            </div>
-            <ul class="tag-chip-list" id="tag-chip-list"></ul>
-          </fieldset>
-
-          <div class="filter-actions">
-            <button type="submit" class="btn btn-primary">検索する</button>
-            <button type="button" class="btn btn-secondary" id="reset-btn">条件をクリア</button>
+<main class="container layout">
+  <section class="filter-panel" aria-labelledby="filter-heading">
+    <h2 id="filter-heading" class="visually-hidden">検索条件</h2>
+    <form id="search-form">
+      <fieldset class="field-group">
+        <legend>予算で絞り込む</legend>
+        <div class="budget-row">
+          <div class="budget-field">
+            <label for="budget-min">最低 (円)</label>
+            <input type="number" id="budget-min" name="budgetMin" min="0" step="100" placeholder="0" inputmode="numeric">
           </div>
-        </form>
-      </section>
-
-      <section class="results-section" aria-labelledby="results-heading">
-        <div class="results-header">
-          <h2 id="results-heading">検索結果</h2>
-          <p id="results-count" aria-live="polite"></p>
+          <span class="budget-sep" aria-hidden="true">〜</span>
+          <div class="budget-field">
+            <label for="budget-max">最高 (円)</label>
+            <input type="number" id="budget-max" name="budgetMax" min="0" step="100" placeholder="上限なし" inputmode="numeric">
+          </div>
         </div>
-        <ul class="results-grid" id="results-grid"></ul>
-        <p class="empty-state" id="empty-state" aria-live="polite" hidden>条件に合う投稿が見つかりませんでした。条件を変えて試してみてください。</p>
-      </section>
+      </fieldset>
+
+      <!-- ジャンルは投稿ページと共有の定義（GENRES）を使用。複数選択でOR絞り込み -->
+      <fieldset class="field-group">
+        <legend id="genre-legend">ジャンルで絞り込む</legend>
+        <div class="chip-group" id="genre-chip-group" role="group" aria-labelledby="genre-legend"></div>
+      </fieldset>
+
+      <!-- やりたい分野をハッシュタグ的に追加。複数タグはAND絞り込み -->
+      <div class="field-group">
+        <label class="field-group__label" for="tag-input">やりたい分野を追加</label>
+        <div class="tag-input-row">
+          <input type="text" id="tag-input" placeholder="例: 写真, 手作り">
+        </div>
+        <ul class="tag-chip-list" id="tag-chip-list"></ul>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-search">検索する</button>
+        <button type="button" class="btn btn-clear" id="reset-btn">条件をクリア</button>
+      </div>
+    </form>
+  </section>
+
+  <section aria-labelledby="results-heading">
+    <div class="results-header">
+      <h2 id="results-heading">検索結果</h2>
+      <p id="results-count" aria-live="polite"></p>
     </div>
-  </main>
+    <div class="results-grid" id="results-grid"></div>
+    <div class="empty-state" id="empty-state" hidden>
+      <h2>条件に合う投稿が見つかりませんでした</h2>
+      <p>予算やジャンル、やりたい分野を変えて、もう一度探してみてください。</p>
+      <button type="button" id="empty-reset-btn">絞り込みをリセット</button>
+    </div>
+  </section>
+</main>
 
-  <script>
-    /**
-     * Post の形（search / post / detail 画面で共通利用する想定）
-     * {
-     *   id, title, genre, genreLabel, prefecture, budget, durationMin,
-     *   teaser, body, tags: string[], thumbnailGradient: [string, string],
-     *   thumbnailIcon, imageAlt, authorName, createdAt
-     * }
-     */
-    const GENRES = [
-      { key: "pilgrimage", label: "聖地巡礼" },
-      { key: "craft", label: "グッズ制作" },
-      { key: "live", label: "参戦" },
-      { key: "cafe", label: "推しカフェ" },
-      { key: "collection", label: "コレクション" },
-    ];
+<script>
+  /* ============================================================
+     GENRES（投稿ページ側もこの定義に合わせる）
+     ============================================================ */
+  const GENRES = [
+    { key: "pilgrimage", label: "聖地巡礼" },
+    { key: "craft", label: "グッズ制作" },
+    { key: "live", label: "参戦" },
+    { key: "cafe", label: "推しカフェ" },
+    { key: "collection", label: "コレクション" },
+  ];
 
-    const MOCK_POSTS = [
-      {
-        id: "p001", title: "推しの出身地を巡る弾丸聖地巡礼(都内日帰り)",
-        genre: "pilgrimage", genreLabel: "聖地巡礼", prefecture: "東京都",
-        budget: 3000, durationMin: 240,
-        teaser: "近くに聖地カフェがあるので合わせて立ち寄れる",
-        body: "電車移動のみで完結。交通費と軽食代のみで楽しめる推し活ルート。",
-        tags: ["聖地巡礼", "日帰り", "電車移動"],
-        thumbnailGradient: ["#FFD166", "#FF6B6B"], thumbnailIcon: "🎌",
-        imageAlt: "聖地巡礼スポットのイメージ画像", authorName: "ゆき", createdAt: "2026-08-10",
-      },
-      {
-        id: "p002", title: "手作りうちわで参戦準備(文字うちわ制作)",
-        genre: "craft", genreLabel: "グッズ制作", prefecture: "大阪府",
-        budget: 1500, durationMin: 120,
-        teaser: "100均素材だけで作れる、初心者向けの手順つき",
-        body: "画用紙・シール・カラーテープのみで完結する低コストの参戦うちわ制作。",
-        tags: ["うちわ制作", "ハンドメイド", "初心者向け"],
-        thumbnailGradient: ["#A0E7E5", "#B4F8C8"], thumbnailIcon: "🎨",
-        imageAlt: "手作りうちわのイメージ画像", authorName: "そら", createdAt: "2026-08-12",
-      },
-      {
-        id: "p003", title: "無料の野外イベントで推し活参戦",
-        genre: "live", genreLabel: "参戦", prefecture: "神奈川県",
-        budget: 800, durationMin: 180,
-        teaser: "入場無料、交通費と軽食代のみで楽しめる",
-        body: "商業施設の無料野外ステージを利用した参戦。手荷物ルールも紹介。",
-        tags: ["野外イベント", "無料", "参戦"],
-        thumbnailGradient: ["#8FD3F4", "#84FAB0"], thumbnailIcon: "🎤",
-        imageAlt: "野外イベント会場のイメージ画像", authorName: "かい", createdAt: "2026-08-14",
-      },
-      {
-        id: "p004", title: "コラボカフェをお得に楽しむ回り方",
-        genre: "cafe", genreLabel: "推しカフェ", prefecture: "京都府",
-        budget: 2000, durationMin: 150,
-        teaser: "1店舗500円前後のドリンクでノベルティ狙い",
-        body: "予約不要のコラボカフェを回るコース。徒歩圏内で完結。",
-        tags: ["コラボカフェ", "推しカフェ", "ノベルティ"],
-        thumbnailGradient: ["#FBC2EB", "#A6C1EE"], thumbnailIcon: "☕",
-        imageAlt: "推しカフェのイメージ画像", authorName: "みなと", createdAt: "2026-08-15",
-      },
-      {
-        id: "p005", title: "スマホだけで撮る「祭壇」フォトテク",
-        genre: "collection", genreLabel: "コレクション", prefecture: "北海道",
-        budget: 0, durationMin: 90,
-        teaser: "追加費用ゼロ、家にある物だけで映える撮影",
-        body: "自然光と100均の小物だけで推しグッズを飾る撮影テクニック集。",
-        tags: ["祭壇", "無料", "スマホ撮影"],
-        thumbnailGradient: ["#30336b", "#7f7fd5"], thumbnailIcon: "📸",
-        imageAlt: "推しグッズの祭壇のイメージ画像", authorName: "はると", createdAt: "2026-08-16",
-      },
-      {
-        id: "p006", title: "缶バッジ&アクリルスタンド風グッズ自作",
-        genre: "craft", genreLabel: "グッズ制作", prefecture: "愛知県",
-        budget: 500, durationMin: 60,
-        teaser: "推しの描いたイラストを印刷して自作するだけ",
-        body: "自宅プリンターと100均のキーホルダー金具で完結する低コストクラフト。",
-        tags: ["グッズ制作", "初心者向け"],
-        thumbnailGradient: ["#F6D365", "#FDA085"], thumbnailIcon: "🧷",
-        imageAlt: "手作り缶バッジのイメージ画像", authorName: "つむぎ", createdAt: "2026-08-17",
-      },
-      {
-        id: "p007", title: "聖地巡礼+御朱印集めの一日旅",
-        genre: "pilgrimage", genreLabel: "聖地巡礼", prefecture: "奈良県",
-        budget: 5500, durationMin: 360,
-        teaser: "御朱印代を含めても半日で5,000円台に収まる",
-        body: "電車とバスを乗り継ぐ巡礼ルート。御朱印帳は事前準備が必要。",
-        tags: ["聖地巡礼", "御朱印", "神社仏閣"],
-        thumbnailGradient: ["#FDCBF1", "#E6DEE9"], thumbnailIcon: "⛩️",
-        imageAlt: "神社を訪れるイメージ画像", authorName: "あおい", createdAt: "2026-08-18",
-      },
-      {
-        id: "p008", title: "配信ライブを友達と鑑賞会で参戦気分",
-        genre: "live", genreLabel: "参戦", prefecture: "長野県",
-        budget: 1200, durationMin: 300,
-        teaser: "配信視聴料を割り勘、会場費ゼロの自宅参戦",
-        body: "持ち寄りの軽食のみで完結する、遠征なしの参戦スタイル。",
-        tags: ["配信ライブ", "参戦", "友達と"],
-        thumbnailGradient: ["#FF9A8B", "#FF6A88"], thumbnailIcon: "🎫",
-        imageAlt: "配信ライブ鑑賞会のイメージ画像", authorName: "りく", createdAt: "2026-08-19",
-      },
-      {
-        id: "p009", title: "個人店の推し色ドリンクでプチ推し活",
-        genre: "cafe", genreLabel: "推しカフェ", prefecture: "福岡県",
-        budget: 1800, durationMin: 120,
-        teaser: "推しカラーのドリンクをオーダーメイドできる店を紹介",
-        body: "1杯600円前後のカスタムドリンクを推しカラーで楽しむコース。",
-        tags: ["推しカラー", "推しカフェ"],
-        thumbnailGradient: ["#D9A7C7", "#FFFCDC"], thumbnailIcon: "🍰",
-        imageAlt: "推し色ドリンクのイメージ画像", authorName: "ももこ", createdAt: "2026-08-20",
-      },
-      {
-        id: "p010", title: "100均素材だけの推しぬい服作り",
-        genre: "craft", genreLabel: "グッズ制作", prefecture: "北海道",
-        budget: 1000, durationMin: 90,
-        teaser: "型紙不要、裁縫初心者でも1時間で完成",
-        body: "フェルトと接着剤中心で完結する、推しぬい用の裁縫なしクラフト。",
-        tags: ["推しぬい", "初心者向け", "ハンドメイド"],
-        thumbnailGradient: ["#C2FFD8", "#465EFB"], thumbnailIcon: "🧸",
-        imageAlt: "推しぬいの服のイメージ画像", authorName: "ゆず", createdAt: "2026-08-21",
-      },
-    ];
+  /* ============================================================
+     MOCK DATA（将来: fetch/APIに置き換え。フィールド構成は投稿ページの
+     送信payload = { title, body, steps, tip, images, genre, genreLabel,
+     prefecture, durationMin, budget } に author/postedAt を足したもの）
+     ============================================================ */
+  const MOCK_POSTS = [
+    {
+      id: "p001", title: "推しの出身地を巡る弾丸聖地巡礼(都内日帰り)",
+      genre: "pilgrimage", genreLabel: "聖地巡礼", prefecture: "東京都",
+      budget: 3000, durationMin: 240,
+      body: "電車移動のみで完結。交通費と軽食代のみで楽しめる推し活ルート。",
+      tip: "近くに聖地カフェがあるので合わせて立ち寄れる",
+      steps: [],
+      tags: ["聖地巡礼", "日帰り", "電車移動"],
+      author: { name: "ゆき" }, postedAt: "2026-08-10",
+    },
+    {
+      id: "p002", title: "手作りうちわで参戦準備(文字うちわ制作)",
+      genre: "craft", genreLabel: "グッズ制作", prefecture: "大阪府",
+      budget: 1500, durationMin: 120,
+      body: "画用紙・シール・カラーテープのみで完結する低コストの参戦うちわ制作。",
+      tip: "100均素材だけで作れる、初心者向けの手順つき",
+      steps: ["厚紙を台紙にする", "文字を切り抜いて貼る", "夜光シートで縁取りする"],
+      tags: ["うちわ制作", "ハンドメイド", "初心者向け"],
+      author: { name: "かずきんぐ" }, postedAt: "2026-08-12",
+    },
+    {
+      id: "p003", title: "無料の野外イベントで推し活参戦",
+      genre: "live", genreLabel: "参戦", prefecture: "神奈川県",
+      budget: 800, durationMin: 180,
+      body: "商業施設の無料野外ステージを利用した参戦。手荷物ルールも紹介。",
+      tip: "入場無料、交通費と軽食代のみで楽しめる",
+      steps: [],
+      tags: ["野外イベント", "無料", "参戦"],
+      author: { name: "かい" }, postedAt: "2026-08-14",
+    },
+    {
+      id: "p004", title: "コラボカフェをお得に楽しむ回り方",
+      genre: "cafe", genreLabel: "推しカフェ", prefecture: "京都府",
+      budget: 2000, durationMin: 150,
+      body: "予約不要のコラボカフェを回るコース。徒歩圏内で完結。",
+      tip: "1店舗500円前後のドリンクでノベルティ狙い",
+      steps: [],
+      tags: ["コラボカフェ", "推しカフェ", "ノベルティ"],
+      author: { name: "みなと" }, postedAt: "2026-08-15",
+    },
+    {
+      id: "p005", title: "スマホだけで撮る「祭壇」フォトテク",
+      genre: "collection", genreLabel: "コレクション", prefecture: "北海道",
+      budget: 0, durationMin: 90,
+      body: "自然光と100均の小物だけで推しグッズを飾る撮影テクニック集。",
+      tip: "追加費用ゼロ、家にある物だけで映える撮影",
+      steps: [],
+      tags: ["祭壇", "無料", "スマホ撮影"],
+      author: { name: "うめ" }, postedAt: "2026-08-16",
+    },
+    {
+      id: "p006", title: "缶バッジ&アクリルスタンド風グッズ自作",
+      genre: "craft", genreLabel: "グッズ制作", prefecture: "愛知県",
+      budget: 500, durationMin: 60,
+      body: "自宅プリンターと100均のキーホルダー金具で完結する低コストクラフト。",
+      tip: "推しの描いたイラストを印刷して自作するだけ",
+      steps: ["好きな推しのイラストを印刷する", "缶バッジのテンプレートサイズに切り抜く", "キットのパーツにセットして圧着する"],
+      tags: ["グッズ制作", "初心者向け"],
+      author: { name: "つむぎ" }, postedAt: "2026-08-17",
+    },
+    {
+      id: "p007", title: "聖地巡礼+御朱印集めの一日旅",
+      genre: "pilgrimage", genreLabel: "聖地巡礼", prefecture: "奈良県",
+      budget: 5500, durationMin: 360,
+      body: "電車とバスを乗り継ぐ巡礼ルート。御朱印帳は事前準備が必要。",
+      tip: "御朱印代を含めても半日で5,000円台に収まる",
+      steps: [],
+      tags: ["聖地巡礼", "御朱印", "神社仏閣"],
+      author: { name: "ka-bon" }, postedAt: "2026-08-18",
+    },
+    {
+      id: "p008", title: "配信ライブを友達と鑑賞会で参戦気分",
+      genre: "live", genreLabel: "参戦", prefecture: "長野県",
+      budget: 1200, durationMin: 300,
+      body: "持ち寄りの軽食のみで完結する、遠征なしの参戦スタイル。",
+      tip: "配信視聴料を割り勘、会場費ゼロの自宅参戦",
+      steps: [],
+      tags: ["配信ライブ", "参戦", "友達と"],
+      author: { name: "こうた" }, postedAt: "2026-08-19",
+    },
+    {
+      id: "p009", title: "個人店の推し色ドリンクでプチ推し活",
+      genre: "cafe", genreLabel: "推しカフェ", prefecture: "福岡県",
+      budget: 1800, durationMin: 120,
+      body: "1杯600円前後のカスタムドリンクを推しカラーで楽しむコース。",
+      tip: "推しカラーのドリンクをオーダーメイドできる店を紹介",
+      steps: [],
+      tags: ["推しカラー", "推しカフェ"],
+      author: { name: "ももこ" }, postedAt: "2026-08-20",
+    },
+    {
+      id: "p010", title: "100均素材だけの推しぬい服作り",
+      genre: "craft", genreLabel: "グッズ制作", prefecture: "北海道",
+      budget: 1000, durationMin: 90,
+      body: "フェルトと接着剤中心で完結する、推しぬい用の裁縫なしクラフト。",
+      tip: "型紙不要、裁縫初心者でも1時間で完成",
+      steps: ["フェルトを型に合わせて切る", "接着剤で貼り合わせる", "推しぬいに着せて完成"],
+      tags: ["推しぬい", "初心者向け", "ハンドメイド"],
+      author: { name: "ゆず" }, postedAt: "2026-08-21",
+    },
+  ];
 
-    const filterState = {
-      budgetMin: null,
-      budgetMax: null,
-      genres: new Set(),
-      tags: [],
+  /* ============================================================
+     STATE
+     ============================================================ */
+  const filterState = {
+    budgetMin: null,
+    budgetMax: null,
+    genres: new Set(),
+    tags: [],
+  };
+
+  /* ============================================================
+     HELPERS
+     ============================================================ */
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[ch]));
+  }
+
+  function formatBudget(yen) {
+    return yen === 0 ? "無料" : `¥${yen.toLocaleString("ja-JP")}`;
+  }
+
+  function formatDuration(min) {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (h && m) return `${h}時間${m}分`;
+    if (h) return `${h}時間`;
+    return `${m}分`;
+  }
+
+  function formatDate(isoDate) {
+    const d = new Date(isoDate);
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  }
+
+  function placeholderClass(index) {
+    return `ph-${(index % 5) + 1}`;
+  }
+
+  function debounce(fn, wait) {
+    let timer = null;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), wait);
     };
+  }
 
-    function formatBudget(yen) {
-      if (yen === 0) return "無料";
-      return yen.toLocaleString("ja-JP") + "円";
-    }
-
-    function formatDuration(min) {
-      if (min < 60) return min + "分";
-      const h = Math.floor(min / 60);
-      const m = min % 60;
-      return m === 0 ? h + "時間" : h + "時間" + m + "分";
-    }
-
-    function renderGenreChips() {
-      const group = document.getElementById("genre-chip-group");
-      group.innerHTML = "";
-      GENRES.forEach((g) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "chip";
-        btn.textContent = g.label;
-        btn.dataset.genre = g.key;
-        btn.setAttribute("aria-pressed", "false");
-        btn.addEventListener("click", () => {
-          if (filterState.genres.has(g.key)) {
-            filterState.genres.delete(g.key);
-            btn.setAttribute("aria-pressed", "false");
-          } else {
-            filterState.genres.add(g.key);
-            btn.setAttribute("aria-pressed", "true");
-          }
-          applyFilters();
-        });
-        group.appendChild(btn);
-      });
-    }
-
-    function renderTagChips() {
-      const list = document.getElementById("tag-chip-list");
-      list.innerHTML = "";
-      filterState.tags.forEach((tag) => {
-        const li = document.createElement("li");
-        li.className = "tag-chip";
-        const span = document.createElement("span");
-        span.textContent = "#" + tag;
-        const removeBtn = document.createElement("button");
-        removeBtn.type = "button";
-        removeBtn.textContent = "×";
-        removeBtn.setAttribute("aria-label", tag + "タグを削除");
-        removeBtn.addEventListener("click", () => {
-          filterState.tags = filterState.tags.filter((t) => t !== tag);
-          renderTagChips();
-          applyFilters();
-        });
-        li.appendChild(span);
-        li.appendChild(removeBtn);
-        list.appendChild(li);
-      });
-    }
-
-    function addTagFromInput() {
-      const input = document.getElementById("tag-input");
-      const value = input.value.trim().replace(/^#/, "");
-      if (value && !filterState.tags.includes(value)) {
-        filterState.tags.push(value);
-        renderTagChips();
+  /* ============================================================
+     GENRE CHIPS
+     ============================================================ */
+  function renderGenreChips() {
+    const group = document.getElementById("genre-chip-group");
+    group.innerHTML = "";
+    GENRES.forEach((g) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = g.label;
+      btn.dataset.genre = g.key;
+      btn.setAttribute("aria-pressed", "false");
+      btn.addEventListener("click", () => {
+        const active = !filterState.genres.has(g.key);
+        if (active) filterState.genres.add(g.key);
+        else filterState.genres.delete(g.key);
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-pressed", String(active));
         applyFilters();
-      }
-      input.value = "";
-    }
+      });
+      group.appendChild(btn);
+    });
+  }
 
-    function matchesFilters(post) {
-      const { budgetMin, budgetMax, genres, tags } = filterState;
-      if (budgetMin !== null && post.budget < budgetMin) return false;
-      if (budgetMax !== null && post.budget > budgetMax) return false;
-      if (genres.size > 0 && !genres.has(post.genre)) return false;
-      if (tags.length > 0) {
-        const haystack = (post.title + " " + post.teaser + " " + post.tags.join(" ")).toLowerCase();
-        const matchesAnyTag = tags.some((t) => haystack.includes(t.toLowerCase()));
-        if (!matchesAnyTag) return false;
-      }
-      return true;
-    }
-
-    function renderCard(post) {
+  /* ============================================================
+     TAG INPUT
+     ============================================================ */
+  function renderTagChips() {
+    const list = document.getElementById("tag-chip-list");
+    list.innerHTML = "";
+    filterState.tags.forEach((tag) => {
       const li = document.createElement("li");
-      li.innerHTML = `
-        <article class="post-card">
-          <a class="post-card__link" href="../detail/index.html?id=${post.id}" aria-label="${post.title}、${post.genreLabel}、予算${formatBudget(post.budget)}の詳細を見る">
-            <div class="post-card__thumb" style="background: linear-gradient(135deg, ${post.thumbnailGradient[0]}, ${post.thumbnailGradient[1]});" role="img" aria-label="${post.imageAlt}">
-              <span aria-hidden="true">${post.thumbnailIcon}</span>
-            </div>
-            <div class="post-card__body">
-              <span class="badge">${post.genreLabel}</span>
-              <h3 class="post-card__title">${post.title}</h3>
-              <p class="post-card__teaser">${post.teaser}</p>
-              <ul class="post-card__meta">
-                <li><span aria-hidden="true">📍</span>${post.prefecture}</li>
-                <li><span aria-hidden="true">⏱</span>${formatDuration(post.durationMin)}</li>
-                <li class="meta-budget"><span aria-hidden="true">💰</span>${formatBudget(post.budget)}</li>
-              </ul>
-            </div>
-          </a>
-        </article>
-      `;
-      return li;
-    }
-
-    function render(posts) {
-      const grid = document.getElementById("results-grid");
-      const emptyState = document.getElementById("empty-state");
-      const countEl = document.getElementById("results-count");
-
-      grid.innerHTML = "";
-      posts.forEach((post) => grid.appendChild(renderCard(post)));
-
-      countEl.textContent = posts.length + "件見つかりました";
-      emptyState.hidden = posts.length > 0;
-      grid.hidden = posts.length === 0;
-    }
-
-    function applyFilters() {
-      const filtered = MOCK_POSTS.filter(matchesFilters);
-      render(filtered);
-    }
-
-    function initEvents() {
-      const form = document.getElementById("search-form");
-      const budgetMin = document.getElementById("budget-min");
-      const budgetMax = document.getElementById("budget-max");
-      const tagInput = document.getElementById("tag-input");
-      const resetBtn = document.getElementById("reset-btn");
-
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        applyFilters();
-      });
-
-      budgetMin.addEventListener("input", () => {
-        filterState.budgetMin = budgetMin.value === "" ? null : Number(budgetMin.value);
-        applyFilters();
-      });
-
-      budgetMax.addEventListener("input", () => {
-        filterState.budgetMax = budgetMax.value === "" ? null : Number(budgetMax.value);
-        applyFilters();
-      });
-
-      tagInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === ",") {
-          e.preventDefault();
-          addTagFromInput();
-        }
-      });
-
-      resetBtn.addEventListener("click", () => {
-        filterState.budgetMin = null;
-        filterState.budgetMax = null;
-        filterState.genres.clear();
-        filterState.tags = [];
-        budgetMin.value = "";
-        budgetMax.value = "";
-        tagInput.value = "";
-        document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+      li.className = "tag-chip";
+      const span = document.createElement("span");
+      span.textContent = `#${tag}`;
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.textContent = "×";
+      removeBtn.setAttribute("aria-label", `${tag}タグを削除`);
+      removeBtn.addEventListener("click", () => {
+        filterState.tags = filterState.tags.filter((t) => t !== tag);
         renderTagChips();
         applyFilters();
       });
-    }
+      li.append(span, removeBtn);
+      list.appendChild(li);
+    });
+  }
 
-    renderGenreChips();
+  function addTagFromInput() {
+    const input = document.getElementById("tag-input");
+    const value = input.value.trim().replace(/^#/, "");
+    const alreadyAdded = filterState.tags.some((t) => t.toLowerCase() === value.toLowerCase());
+    if (value && !alreadyAdded) {
+      filterState.tags.push(value);
+      renderTagChips();
+      applyFilters();
+    }
+    input.value = "";
+  }
+
+  /* ============================================================
+     FILTER
+     ============================================================ */
+  function matchesFilters(post) {
+    const { budgetMin, budgetMax, genres, tags } = filterState;
+    if (budgetMin !== null && post.budget < budgetMin) return false;
+    if (budgetMax !== null && post.budget > budgetMax) return false;
+    if (genres.size > 0 && !genres.has(post.genre)) return false;
+    if (tags.length > 0) {
+      const haystack = `${post.title} ${post.tip} ${post.body} ${post.tags.join(" ")}`.toLowerCase();
+      const matchesAllTags = tags.every((t) => haystack.includes(t.toLowerCase()));
+      if (!matchesAllTags) return false;
+    }
+    return true;
+  }
+
+  function applyFilters() {
+    render(MOCK_POSTS.filter(matchesFilters));
+  }
+
+  /* ============================================================
+     RENDER
+     ============================================================ */
+  function renderCard(post, index) {
+    const card = document.createElement("a");
+    card.className = "card";
+    card.href = `../detail/index.html?id=${encodeURIComponent(post.id)}`;
+    card.setAttribute(
+      "aria-label",
+      `${post.title}、${post.genreLabel}、予算${formatBudget(post.budget)}の詳細を見る`
+    );
+
+    card.innerHTML = `
+      <div class="card__media ${placeholderClass(index)}">
+        <span class="card__media-letter" aria-hidden="true">${escapeHtml(post.genreLabel.slice(0, 1))}</span>
+        <span class="card__price">${formatBudget(post.budget)}</span>
+      </div>
+      <div class="card__body">
+        <span class="card__genre-badge">${escapeHtml(post.genreLabel)}</span>
+        <h3 class="card__title">${escapeHtml(post.title)}</h3>
+        <p class="card__meta">${escapeHtml(post.prefecture)} ・ ${formatDuration(post.durationMin)}${post.steps.length > 0 ? ` ・ 手順${post.steps.length}つ` : ""}</p>
+        <p class="card__desc">${escapeHtml(post.tip)}</p>
+        <p class="card__footer">${escapeHtml(post.author.name)} ・ ${formatDate(post.postedAt)}</p>
+      </div>
+    `;
+    return card;
+  }
+
+  function render(posts) {
+    const grid = document.getElementById("results-grid");
+    const emptyState = document.getElementById("empty-state");
+    const countEl = document.getElementById("results-count");
+
+    grid.innerHTML = "";
+    posts.forEach((post, index) => grid.appendChild(renderCard(post, index)));
+
+    countEl.textContent = `${posts.length}件見つかりました`;
+    emptyState.hidden = posts.length > 0;
+    grid.hidden = posts.length === 0;
+  }
+
+  /* ============================================================
+     EVENTS
+     ============================================================ */
+  function resetFilters() {
+    filterState.budgetMin = null;
+    filterState.budgetMax = null;
+    filterState.genres.clear();
+    filterState.tags = [];
+
+    document.getElementById("budget-min").value = "";
+    document.getElementById("budget-max").value = "";
+    document.getElementById("tag-input").value = "";
+    document.querySelectorAll("#genre-chip-group .chip").forEach((c) => {
+      c.classList.remove("is-active");
+      c.setAttribute("aria-pressed", "false");
+    });
     renderTagChips();
-    initEvents();
     applyFilters();
-  </script>
+  }
+
+  function initEvents() {
+    const form = document.getElementById("search-form");
+    const budgetMin = document.getElementById("budget-min");
+    const budgetMax = document.getElementById("budget-max");
+    const tagInput = document.getElementById("tag-input");
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      applyFilters();
+    });
+
+    const debouncedApply = debounce(applyFilters, 150);
+
+    budgetMin.addEventListener("input", () => {
+      filterState.budgetMin = budgetMin.value === "" ? null : Number(budgetMin.value);
+      debouncedApply();
+    });
+
+    budgetMax.addEventListener("input", () => {
+      filterState.budgetMax = budgetMax.value === "" ? null : Number(budgetMax.value);
+      debouncedApply();
+    });
+
+    tagInput.addEventListener("keydown", (e) => {
+      if (e.isComposing) return;
+      if (e.key === "Enter" || e.key === ",") {
+        e.preventDefault();
+        addTagFromInput();
+      }
+    });
+
+    document.getElementById("reset-btn").addEventListener("click", resetFilters);
+    document.getElementById("empty-reset-btn").addEventListener("click", resetFilters);
+  }
+
+  /* ============================================================
+     INIT
+     ============================================================ */
+  renderGenreChips();
+  renderTagChips();
+  initEvents();
+  applyFilters();
+</script>
 </body>
 </html>
