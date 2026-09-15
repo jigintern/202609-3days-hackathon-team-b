@@ -70,8 +70,10 @@
   }
 
   /* Hero image */
-  .hero {
+  .hero-wrap {
     position: relative;
+  }
+  .hero {
     width: 100%;
     aspect-ratio: 4 / 3;
     background: linear-gradient(135deg, #FFF6C4, #FFEF6C);
@@ -413,7 +415,10 @@
     <h1>投稿詳細</h1>
   </header>
 
-  <div class="hero" id="hero"></div>
+  <div class="hero-wrap">
+    <div class="hero" id="hero"></div>
+    <div class="hero-dots" id="heroDots"></div>
+  </div>
 
   <div class="content">
     <span class="genre-badge" id="genreBadge"></span>
@@ -473,7 +478,8 @@
       <div class="report-form">
         <textarea id="reportInput" placeholder="実際にやってみた感想を書いてみよう！"></textarea>
         <div class="report-form-actions">
-          <button class="attach-btn" type="button">📷 画像を追加</button>
+          <input type="file" id="reportImageInput" accept="image/*" hidden>
+          <button class="attach-btn" type="button" id="attachBtn">📷 画像を追加</button>
           <button class="submit-btn" id="submitReport" disabled>投稿する</button>
         </div>
       </div>
@@ -535,10 +541,28 @@
     }
   ];
 
+  // ------- Helpers -------
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, ch => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[ch]));
+  }
+
   // ------- Render -------
   function renderHero() {
     const hero = document.getElementById("hero");
-    hero.innerHTML = post.images.map(src => `<img src="${src}" alt="${post.title}">`).join("");
+    hero.innerHTML = post.images.map(src => `<img src="${src}" alt="${escapeHtml(post.title)}">`).join("");
+
+    const dotsEl = document.getElementById("heroDots");
+    if (post.images.length > 1) {
+      dotsEl.innerHTML = post.images.map((_, i) => `<span class="${i === 0 ? "active" : ""}"></span>`).join("");
+      hero.addEventListener("scroll", () => {
+        const index = Math.round(hero.scrollLeft / hero.clientWidth);
+        dotsEl.querySelectorAll("span").forEach((dot, i) => dot.classList.toggle("active", i === index));
+      });
+    } else {
+      dotsEl.innerHTML = "";
+    }
   }
 
   function renderPost() {
@@ -553,10 +577,10 @@
 
     document.getElementById("materialCount").textContent = `(${post.materials.length})`;
     document.getElementById("materialList").innerHTML = post.materials
-      .map(m => `<li><span class="dot"></span>${m}</li>`).join("");
+      .map(m => `<li><span class="dot"></span>${escapeHtml(m)}</li>`).join("");
 
     document.getElementById("stepList").innerHTML = post.steps
-      .map(s => `<li>${s}</li>`).join("");
+      .map(s => `<li>${escapeHtml(s)}</li>`).join("");
 
     document.getElementById("tipText").textContent = post.tip;
     document.getElementById("tipCard").style.display = post.tip ? "flex" : "none";
@@ -575,10 +599,10 @@
     document.getElementById("reportCount").textContent = `(${reports.length})`;
     document.getElementById("reportList").innerHTML = reports.map(r => `
       <div class="report-item">
-        <div class="avatar">${r.name.charAt(0)}</div>
+        <div class="avatar">${escapeHtml(r.name.charAt(0))}</div>
         <div class="report-body">
-          <div class="report-name">${r.name}</div>
-          <div class="report-text">${r.text}</div>
+          <div class="report-name">${escapeHtml(r.name)}</div>
+          <div class="report-text">${escapeHtml(r.text)}</div>
           ${r.image ? `<img class="report-image" src="${r.image}" alt="レポート画像">` : ""}
           <div class="report-footer">
             <button class="report-like-btn ${r.liked ? "liked" : ""}" data-id="${r.id}">
@@ -588,16 +612,6 @@
         </div>
       </div>
     `).join("");
-
-    document.querySelectorAll(".report-like-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = Number(btn.dataset.id);
-        const r = reports.find(x => x.id === id);
-        r.liked = !r.liked;
-        r.likes += r.liked ? 1 : -1;
-        renderReports();
-      });
-    });
   }
 
   // ------- Events -------
@@ -607,21 +621,68 @@
     updateLikeUI();
   });
 
-  document.getElementById("back-btn");
   document.querySelector(".back-btn").addEventListener("click", () => {
     history.back();
   });
 
+  document.querySelector(".share-btn").addEventListener("click", async () => {
+    const shareData = { title: post.title, text: post.desc, url: location.href };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch (err) { /* ユーザーがキャンセル */ }
+      return;
+    }
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        alert("URLをコピーしました");
+        return;
+      } catch (err) { /* クリップボード権限なし → フォールバック */ }
+    }
+    alert(location.href);
+  });
+
+  // いいねボタンはレポートを再描画するたびに増えるので、
+  // 親要素への委任で1つのリスナーだけを使う
+  document.getElementById("reportList").addEventListener("click", (e) => {
+    const btn = e.target.closest(".report-like-btn");
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    const r = reports.find(x => x.id === id);
+    r.liked = !r.liked;
+    r.likes += r.liked ? 1 : -1;
+    renderReports();
+  });
+
   const reportInput = document.getElementById("reportInput");
   const submitBtn = document.getElementById("submitReport");
+  const attachBtn = document.getElementById("attachBtn");
+  const reportImageInput = document.getElementById("reportImageInput");
+  let attachedImage = null;
+
   reportInput.addEventListener("input", () => {
     submitBtn.disabled = reportInput.value.trim().length === 0;
   });
+
+  attachBtn.addEventListener("click", () => reportImageInput.click());
+  reportImageInput.addEventListener("change", () => {
+    const file = reportImageInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      attachedImage = reader.result;
+      attachBtn.textContent = `✅ ${file.name}`;
+    };
+    reader.readAsDataURL(file);
+  });
+
   submitBtn.addEventListener("click", () => {
     const text = reportInput.value.trim();
     if (!text) return;
-    reports = [{ id: Date.now(), name: "あなた", text, image: null, likes: 0, liked: false }, ...reports];
+    reports = [{ id: Date.now(), name: "あなた", text, image: attachedImage, likes: 0, liked: false }, ...reports];
     reportInput.value = "";
+    reportImageInput.value = "";
+    attachedImage = null;
+    attachBtn.textContent = "📷 画像を追加";
     submitBtn.disabled = true;
     renderReports();
   });
