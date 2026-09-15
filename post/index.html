@@ -82,6 +82,12 @@ button, select, input, textarea { font-family: inherit; }
   padding: 0.45em 1.1em;
   border-radius: 999px;
   text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.header-cancel:hover,
+.header-cancel:focus-visible {
+  border-color: var(--ink-muted);
+  color: var(--ink);
 }
 
 /* ============================================================
