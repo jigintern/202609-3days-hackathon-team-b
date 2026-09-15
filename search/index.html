@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>予算で探す | 低コスト遊びシェア</title>
+<title>予算で探す | 推し活シェア</title>
 <style>
   /* ===== 1. デザイントークン ===== */
   :root {
@@ -446,7 +446,7 @@
 </head>
 <body>
   <header class="page-header">
-    <h1>低コスト<span class="logo-accent">遊び</span>シェア</h1>
+    <h1><span class="logo-accent">推し活</span>シェア</h1>
   </header>
 
   <main class="container">
@@ -515,71 +515,71 @@
     const GENRES = [
       { key: "pilgrimage", label: "聖地巡礼" },
       { key: "craft", label: "グッズ制作" },
-      { key: "outdoor", label: "アウトドア" },
-      { key: "cafe", label: "カフェ巡り" },
-      { key: "photo", label: "写真撮影" },
+      { key: "live", label: "参戦" },
+      { key: "cafe", label: "推しカフェ" },
+      { key: "collection", label: "コレクション" },
     ];
 
     const MOCK_POSTS = [
       {
-        id: "p001", title: "低予算でアニメ聖地巡礼(都内日帰り)",
+        id: "p001", title: "推しの出身地を巡る弾丸聖地巡礼(都内日帰り)",
         genre: "pilgrimage", genreLabel: "聖地巡礼", prefecture: "東京都",
         budget: 3000, durationMin: 240,
         teaser: "近くに聖地カフェがあるので合わせて立ち寄れる",
-        body: "電車移動のみで完結。交通費と軽食代のみで楽しめるルート。",
-        tags: ["アニメ", "日帰り", "電車移動"],
+        body: "電車移動のみで完結。交通費と軽食代のみで楽しめる推し活ルート。",
+        tags: ["聖地巡礼", "日帰り", "電車移動"],
         thumbnailGradient: ["#FFD166", "#FF6B6B"], thumbnailIcon: "🎌",
         imageAlt: "聖地巡礼スポットのイメージ画像", authorName: "ゆき", createdAt: "2026-08-10",
       },
       {
-        id: "p002", title: "端材で作るミニチュアグッズ制作",
+        id: "p002", title: "手作りうちわで参戦準備(文字うちわ制作)",
         genre: "craft", genreLabel: "グッズ制作", prefecture: "大阪府",
         budget: 1500, durationMin: 120,
         teaser: "100均素材だけで作れる、初心者向けの手順つき",
-        body: "接着剤・紙粘土・着色料のみで完結する低コストクラフト。",
-        tags: ["ハンドメイド", "初心者向け"],
+        body: "画用紙・シール・カラーテープのみで完結する低コストの参戦うちわ制作。",
+        tags: ["うちわ制作", "ハンドメイド", "初心者向け"],
         thumbnailGradient: ["#A0E7E5", "#B4F8C8"], thumbnailIcon: "🎨",
-        imageAlt: "手作りグッズのイメージ画像", authorName: "そら", createdAt: "2026-08-12",
+        imageAlt: "手作りうちわのイメージ画像", authorName: "そら", createdAt: "2026-08-12",
       },
       {
-        id: "p003", title: "無料の川辺でピクニック&写真撮影",
-        genre: "outdoor", genreLabel: "アウトドア", prefecture: "神奈川県",
+        id: "p003", title: "無料の野外イベントで推し活参戦",
+        genre: "live", genreLabel: "参戦", prefecture: "神奈川県",
         budget: 800, durationMin: 180,
-        teaser: "駐車場代のみ、飲食物は持参で節約",
-        body: "河川敷を利用した無料スポットでの日帰りアウトドア。",
-        tags: ["ピクニック", "写真", "自然"],
-        thumbnailGradient: ["#8FD3F4", "#84FAB0"], thumbnailIcon: "🌳",
-        imageAlt: "川辺でピクニックをするイメージ画像", authorName: "かい", createdAt: "2026-08-14",
+        teaser: "入場無料、交通費と軽食代のみで楽しめる",
+        body: "商業施設の無料野外ステージを利用した参戦。手荷物ルールも紹介。",
+        tags: ["野外イベント", "無料", "参戦"],
+        thumbnailGradient: ["#8FD3F4", "#84FAB0"], thumbnailIcon: "🎤",
+        imageAlt: "野外イベント会場のイメージ画像", authorName: "かい", createdAt: "2026-08-14",
       },
       {
-        id: "p004", title: "個人経営カフェの日替わり巡り",
-        genre: "cafe", genreLabel: "カフェ巡り", prefecture: "京都府",
+        id: "p004", title: "コラボカフェをお得に楽しむ回り方",
+        genre: "cafe", genreLabel: "推しカフェ", prefecture: "京都府",
         budget: 2000, durationMin: 150,
-        teaser: "1店舗500円前後のドリンクで3店舗ハシゴ",
-        body: "予約不要の個人カフェを回るコース。徒歩圏内で完結。",
-        tags: ["カフェ", "食べ歩き"],
+        teaser: "1店舗500円前後のドリンクでノベルティ狙い",
+        body: "予約不要のコラボカフェを回るコース。徒歩圏内で完結。",
+        tags: ["コラボカフェ", "推しカフェ", "ノベルティ"],
         thumbnailGradient: ["#FBC2EB", "#A6C1EE"], thumbnailIcon: "☕",
-        imageAlt: "カフェ巡りのイメージ画像", authorName: "みなと", createdAt: "2026-08-15",
+        imageAlt: "推しカフェのイメージ画像", authorName: "みなと", createdAt: "2026-08-15",
       },
       {
-        id: "p005", title: "スマホだけで撮る夜景フォトウォーク",
-        genre: "photo", genreLabel: "写真撮影", prefecture: "北海道",
+        id: "p005", title: "スマホだけで撮る「祭壇」フォトテク",
+        genre: "collection", genreLabel: "コレクション", prefecture: "北海道",
         budget: 0, durationMin: 90,
-        teaser: "交通費すら不要、徒歩圏の夜景スポットのみ",
-        body: "無料の展望スポットを回る夜景撮影ルート。三脚不要の設定紹介あり。",
-        tags: ["夜景", "無料", "スマホ撮影"],
-        thumbnailGradient: ["#30336b", "#7f7fd5"], thumbnailIcon: "📷",
-        imageAlt: "夜景撮影のイメージ画像", authorName: "はると", createdAt: "2026-08-16",
+        teaser: "追加費用ゼロ、家にある物だけで映える撮影",
+        body: "自然光と100均の小物だけで推しグッズを飾る撮影テクニック集。",
+        tags: ["祭壇", "無料", "スマホ撮影"],
+        thumbnailGradient: ["#30336b", "#7f7fd5"], thumbnailIcon: "📸",
+        imageAlt: "推しグッズの祭壇のイメージ画像", authorName: "はると", createdAt: "2026-08-16",
       },
       {
-        id: "p006", title: "廃材リメイクのアクセサリー作り",
+        id: "p006", title: "缶バッジ&アクリルスタンド風グッズ自作",
         genre: "craft", genreLabel: "グッズ制作", prefecture: "愛知県",
         budget: 500, durationMin: 60,
-        teaser: "余った布やボタンだけで作る簡単アクセサリー",
-        body: "家にある端材を使い切る前提の低コストクラフト。",
-        tags: ["リメイク", "初心者向け"],
-        thumbnailGradient: ["#F6D365", "#FDA085"], thumbnailIcon: "💍",
-        imageAlt: "手作りアクセサリーのイメージ画像", authorName: "つむぎ", createdAt: "2026-08-17",
+        teaser: "推しの描いたイラストを印刷して自作するだけ",
+        body: "自宅プリンターと100均のキーホルダー金具で完結する低コストクラフト。",
+        tags: ["グッズ制作", "初心者向け"],
+        thumbnailGradient: ["#F6D365", "#FDA085"], thumbnailIcon: "🧷",
+        imageAlt: "手作り缶バッジのイメージ画像", authorName: "つむぎ", createdAt: "2026-08-17",
       },
       {
         id: "p007", title: "聖地巡礼+御朱印集めの一日旅",
@@ -587,39 +587,39 @@
         budget: 5500, durationMin: 360,
         teaser: "御朱印代を含めても半日で5,000円台に収まる",
         body: "電車とバスを乗り継ぐ巡礼ルート。御朱印帳は事前準備が必要。",
-        tags: ["御朱印", "神社仏閣"],
+        tags: ["聖地巡礼", "御朱印", "神社仏閣"],
         thumbnailGradient: ["#FDCBF1", "#E6DEE9"], thumbnailIcon: "⛩️",
         imageAlt: "神社を訪れるイメージ画像", authorName: "あおい", createdAt: "2026-08-18",
       },
       {
-        id: "p008", title: "無料キャンプ場での焚き火体験",
-        genre: "outdoor", genreLabel: "アウトドア", prefecture: "長野県",
+        id: "p008", title: "配信ライブを友達と鑑賞会で参戦気分",
+        genre: "live", genreLabel: "参戦", prefecture: "長野県",
         budget: 1200, durationMin: 300,
-        teaser: "薪代のみ、場所代無料の穴場スポット紹介",
-        body: "焚き火台のレンタルなしでも楽しめる直火可能エリアの利用ルール込み。",
-        tags: ["キャンプ", "焚き火"],
-        thumbnailGradient: ["#FF9A8B", "#FF6A88"], thumbnailIcon: "🔥",
-        imageAlt: "焚き火をしているイメージ画像", authorName: "りく", createdAt: "2026-08-19",
+        teaser: "配信視聴料を割り勘、会場費ゼロの自宅参戦",
+        body: "持ち寄りの軽食のみで完結する、遠征なしの参戦スタイル。",
+        tags: ["配信ライブ", "参戦", "友達と"],
+        thumbnailGradient: ["#FF9A8B", "#FF6A88"], thumbnailIcon: "🎫",
+        imageAlt: "配信ライブ鑑賞会のイメージ画像", authorName: "りく", createdAt: "2026-08-19",
       },
       {
-        id: "p009", title: "商店街のレトロ喫茶店めぐり",
-        genre: "cafe", genreLabel: "カフェ巡り", prefecture: "福岡県",
+        id: "p009", title: "個人店の推し色ドリンクでプチ推し活",
+        genre: "cafe", genreLabel: "推しカフェ", prefecture: "福岡県",
         budget: 1800, durationMin: 120,
-        teaser: "昭和レトロな内装の店を中心に回るコース",
-        body: "1軒あたり600円前後のモーニング利用で予算内に収める。",
-        tags: ["レトロ", "喫茶店"],
+        teaser: "推しカラーのドリンクをオーダーメイドできる店を紹介",
+        body: "1杯600円前後のカスタムドリンクを推しカラーで楽しむコース。",
+        tags: ["推しカラー", "推しカフェ"],
         thumbnailGradient: ["#D9A7C7", "#FFFCDC"], thumbnailIcon: "🍰",
-        imageAlt: "レトロ喫茶店のイメージ画像", authorName: "ももこ", createdAt: "2026-08-20",
+        imageAlt: "推し色ドリンクのイメージ画像", authorName: "ももこ", createdAt: "2026-08-20",
       },
       {
-        id: "p010", title: "100均素材だけのぬいぐるみ服作り",
+        id: "p010", title: "100均素材だけの推しぬい服作り",
         genre: "craft", genreLabel: "グッズ制作", prefecture: "北海道",
         budget: 1000, durationMin: 90,
         teaser: "型紙不要、裁縫初心者でも1時間で完成",
-        body: "フェルトと接着剤中心で完結する裁縫なしクラフト。",
-        tags: ["ぬいぐるみ", "初心者向け", "ハンドメイド"],
+        body: "フェルトと接着剤中心で完結する、推しぬい用の裁縫なしクラフト。",
+        tags: ["推しぬい", "初心者向け", "ハンドメイド"],
         thumbnailGradient: ["#C2FFD8", "#465EFB"], thumbnailIcon: "🧸",
-        imageAlt: "ぬいぐるみの服のイメージ画像", authorName: "ゆず", createdAt: "2026-08-21",
+        imageAlt: "推しぬいの服のイメージ画像", authorName: "ゆず", createdAt: "2026-08-21",
       },
     ];
 
