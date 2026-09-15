@@ -1,7 +1,7 @@
 // R2 への画像アップロードと配信。
 
 import type { Env } from "./types";
-import { error, json, noContent } from "./http";
+import { CORS_HEADERS, error, json, noContent } from "./http";
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -54,7 +54,7 @@ export async function serveImage(key: string, env: Env): Promise<Response> {
   const object = await env.BUCKET.get(key);
   if (!object) return error("画像が見つかりません", 404);
 
-  const headers = new Headers();
+  const headers = new Headers(CORS_HEADERS);
   object.writeHttpMetadata?.(headers);
   headers.set("ETag", object.httpEtag);
   if (!headers.has("Cache-Control")) {

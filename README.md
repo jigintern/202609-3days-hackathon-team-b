@@ -81,6 +81,31 @@ async function toggleLike(postId) {
 }
 ```
 
+## CORS
+
+`Access-Control-Allow-Origin: *` を全エンドポイントに付けているので、**別ドメインのページからそのまま呼べます**。プリフライト（`OPTIONS`）にも応答し、404 や 422 などのエラーレスポンスにも付くのでエラー内容をブラウザ側で読めます。
+
+```js
+// 別ドメインのページから
+const res = await fetch("https://intern-b.tekitou.app/api/posts");
+const { posts } = await res.json();
+```
+
+認証も Cookie も使っていないため `*` で済んでいます。Cookie を使う構成に変える場合は `*` が使えなくなり、オリジンを個別に指定して `Access-Control-Allow-Credentials` を返す必要があります。
+
+## クエリの URL エンコード
+
+日本語を含むクエリは**必ず URL エンコードしてください**。生の日本語を URL に入れると、API に届く前に Cloudflare のエッジが `400` を返します。
+
+```js
+// NG: /api/posts?q=100均  → 400
+fetch(`/api/posts?q=${encodeURIComponent("100均")}`);
+
+// URLSearchParams を使えば自動でエンコードされる
+const params = new URLSearchParams({ q: "100均", genre: "craft" });
+fetch(`/api/posts?${params}`);
+```
+
 ## エンドポイント一覧
 
 | メソッド | パス                        | 用途                       | 使うページ           |

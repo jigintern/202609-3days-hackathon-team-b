@@ -1,9 +1,23 @@
 // レスポンスとリクエスト解釈の共通処理。
 
+// 認証もCookieも使わないため、どのオリジンからでも呼べるようにしている。
+// Cookie を使う構成に変えるときは "*" では動かなくなるので注意。
+export const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Max-Age": "86400",
+};
+
+/** ブラウザからのプリフライト（OPTIONS）に答える */
+export function preflight(): Response {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
+    headers: { "Content-Type": "application/json; charset=utf-8", ...CORS_HEADERS },
   });
 }
 
@@ -12,7 +26,7 @@ export function error(message: string, status = 400): Response {
 }
 
 export function noContent(): Response {
-  return new Response(null, { status: 204 });
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
 export function intParam(value: string | null, fallback?: number): number | undefined {
