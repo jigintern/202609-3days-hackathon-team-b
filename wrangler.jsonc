@@ -7,6 +7,12 @@
 	"assets": {
 		"directory": "./"
 	},
+	"routes": [
+		{
+			"pattern": "intern-b.tekitou.app",
+			"custom_domain": true
+		}
+	],
 	"d1_databases": [
 		{
 			"binding": "DB",
