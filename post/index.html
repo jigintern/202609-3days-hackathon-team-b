@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投稿する | オシピ！</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   TOKENS（トップページと共通）
+   ============================================================ */
+:root {
+  --bg: #F7F7F7;
+  --surface: #FFFFFF;
+  --ink: #030303;
+  --ink-muted: #5C5C5C;
+  --accent: #FFEF6C;
+  --accent-dark: #E6D64A;
+  --line: #E3E3E1;
+  --danger: #D8453B;
+
+  --font-display: 'Kiwi Maru', serif;
+  --font-body: 'Zen Kaku Gothic New', sans-serif;
+
+  --form-w: 640px;
+  --gutter: clamp(16px, 4vw, 32px);
+}
+
+/* ============================================================
+   BASE / RESET
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+button, select, input, textarea { font-family: inherit; }
+
+*:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px var(--gutter);
+  background: rgba(247, 247, 247, 0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+.site-logo {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.15rem;
+  text-decoration: none;
+}
+.header-cancel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  padding: 0.45em 1.1em;
+  border-radius: 999px;
+  text-decoration: none;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.form-wrap {
+  max-width: var(--form-w);
+  margin-inline: auto;
+  padding: 24px var(--gutter) 120px;
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.5rem;
+  margin: 0 0 4px;
+}
+.page-lead {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  margin: 0 0 24px;
+}
+
+/* ============================================================
+   FIELD
+   ============================================================ */
+.field {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+.field__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.field__label {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.req {
+  background: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  line-height: 1.6;
+}
+.opt {
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  line-height: 1.6;
+}
+.field__hint {
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+  margin: 0 0 12px;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0.65em 0.8em;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+textarea {
+  resize: vertical;
+  min-height: 140px;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent-dark);
+}
+
+.counter {
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.counter.is-over { color: var(--danger); font-weight: 700; }
+
+/* ============================================================
+   IMAGE PICKER
+   ============================================================ */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+.image-item {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.image-item__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(3, 3, 3, 0.65);
+  color: #fff;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.image-add {
+  aspect-ratio: 4 / 3;
+  border: 1px dashed #C7C7C2;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.image-add:hover { border-color: var(--accent-dark); }
+.image-add .plus { font-size: 1.3rem; }
+
+/* ============================================================
+   GENRE CHIPS
+   ============================================================ */
+.chip-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.85rem;
+  padding: 0.5em 1.1em;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+/* ============================================================
+   STEP LIST
+   ============================================================ */
+.step-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  counter-reset: step;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.step-list li {
+  counter-increment: step;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.step-list li::before {
+  content: counter(step);
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.step-remove {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.add-btn {
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 0.6em 1.2em;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.add-btn:hover { border-color: var(--accent-dark); }
+
+/* ============================================================
+   INPUT WITH UNIT
+   ============================================================ */
+.row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 480px) {
+  .row-2 { grid-template-columns: 1fr; }
+}
+.input-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.input-unit .unit {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   SUBMIT BAR
+   ============================================================ */
+.submit-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(247, 247, 247, 0.94);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid var(--line);
+  padding: 12px var(--gutter);
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.submit-inner {
+  max-width: var(--form-w);
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.submit-status {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+.btn-submit {
+  border: none;
+  background: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.75em 1.8em;
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.btn-submit:hover:not(:disabled) { background: var(--accent-dark); }
+.btn-submit:disabled {
+  background: #EAEAE6;
+  color: #A8A8A2;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   DONE
+   ============================================================ */
+.done {
+  text-align: center;
+  padding: 64px var(--gutter);
+  max-width: var(--form-w);
+  margin-inline: auto;
+}
+.done__mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin: 0 auto 20px;
+}
+.done h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.4rem;
+  margin: 0 0 8px;
+}
+.done p {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  margin: 0 0 24px;
+}
+.done__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.done__actions a, .done__actions button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0.65em 1.4em;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.done__actions .primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a class="site-logo" href="../index.html">オシピ！</a>
+  <a class="header-cancel" href="../index.html">やめる</a>
+</header>
+
+<main>
+  <form class="form-wrap" id="postForm" novalidate>
+    <h1 class="page-title">推し活を投稿する</h1>
+    <p class="page-lead">やってみた推し活を共有しよう。<span aria-hidden="true">🌟</span></p>
+
+    <!-- テキスト -->
+    <section class="field">
+      <div class="field__head">
+        <span class="field__label">テキスト</span>
+        <span class="req">必須</span>
+      </div>
+      <p class="field__hint">どんな推し活をしたか書いてみよう。</p>
+      <input type="text" id="title" maxlength="60" placeholder="タイトル（例：推しの缶バッジ風アクセサリー作り）">
+      <div style="height:12px"></div>
+      <textarea id="body" maxlength="1000" placeholder="やったこと・きっかけ・感想などを自由に書いてください。"></textarea>
+      <div class="counter" id="bodyCounter">0 / 1000</div>
+    </section>
+
+    <!-- 手順 -->
+    <section class="field">
+      <div class="field__head">
+        <span class="field__label">手順</span>
+        <span class="opt">任意</span>
+      </div>
+      <p class="field__hint">順番に並べると、まねしたい人が動きやすくなります。</p>
+      <ol class="step-list" id="stepList"></ol>
+      <button type="button" class="add-btn" id="addStep">＋ 手順を追加</button>
+    </section>
+
+    <!-- その他情報 -->
+    <section class="field">
+      <div class="field__head">
+        <span class="field__label">その他情報</span>
+        <span class="opt">任意</span>
+      </div>
+      <p class="field__hint">聖地巡礼なら「近くに○○がある」など、一言あると助かります。</p>
+      <textarea id="tip" maxlength="200" style="min-height:80px"
+        placeholder="例：近くに「手芸センタードリーム 新宿店」があるので材料調達に立ち寄れます。"></textarea>
+      <div class="counter" id="tipCounter">0 / 200</div>
+    </section>
+
+    <!-- 画像 -->
+    <section class="field">
+      <div class="field__head">
+        <span class="field__label">画像</span>
+        <span class="req">必須</span>
+      </div>
+      <p class="field__hint">最大 5 枚。1 枚目が一覧のサムネイルになります。</p>
+      <div class="image-grid" id="imageGrid"></div>
+      <input type="file" id="imageInput" accept="image/*" multiple hidden>
+    </section>
+
+    <!-- ジャンル -->
+    <section class="field">
+      <div class="field__head">
+        <span class="field__label">ジャンル</span>
+        <span class="req">必須</span>
+      </div>
+      <p class="field__hint">ひとつ選んでください。</p>
+      <div class="chip-group" id="genreChips"></div>
+    </section>
+
+    <!-- 開催地 -->
+    <section class="field">
+      <div class="field__head">
+        <span class="field__label">開催地</span>
+        <span class="opt">任意</span>
+      </div>
+      <p class="field__hint">おうちでできる推し活なら空欄でだいじょうぶです。</p>
+      <select id="prefecture">
+        <option value="">選択しない</option>
+      </select>
+    </section>
+
+    <!-- 所要時間・予算 -->
+    <div class="row-2">
+      <section class="field">
+        <div class="field__head">
+          <span class="field__label">所要時間</span>
+          <span class="opt">任意</span>
+        </div>
+        <p class="field__hint">だいたいで大丈夫です。</p>
+        <div class="input-unit">
+          <input type="number" id="duration" min="0" max="10080" step="5" inputmode="numeric" placeholder="180">
+          <span class="unit">分</span>
+        </div>
+      </section>
+
+      <section class="field">
+        <div class="field__head">
+          <span class="field__label">予算</span>
+          <span class="opt">任意</span>
+        </div>
+        <p class="field__hint">材料費・交通費などの合計。</p>
+        <div class="input-unit">
+          <input type="number" id="budget" min="0" max="1000000" step="100" inputmode="numeric" placeholder="2500">
+          <span class="unit">円</span>
+        </div>
+      </section>
+    </div>
+  </form>
+</main>
+
+<div class="submit-bar" id="submitBar">
+  <div class="submit-inner">
+    <span class="submit-status" id="submitStatus"></span>
+    <button type="submit" form="postForm" class="btn-submit" id="submitBtn" disabled>投稿する</button>
+  </div>
+</div>
+
+<script>
+  // ------- 定数 -------
+  // ジャンルは search/index.html の定義に合わせる
+  const GENRES = [
+    { key: "pilgrimage", label: "聖地巡礼" },
+    { key: "craft", label: "グッズ制作" },
+    { key: "live", label: "参戦" },
+    { key: "cafe", label: "推しカフェ" },
+    { key: "collection", label: "コレクション" }
+  ];
+
+  const PREFECTURES = [
+    "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
+    "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
+    "新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県",
+    "三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
+    "鳥取県","島根県","岡山県","広島県","山口県",
+    "徳島県","香川県","愛媛県","高知県",
+    "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
+  ];
+
+  const MAX_IMAGES = 5;
+
+  // ------- 状態 -------
+  const state = {
+    genre: "",
+    images: [],  // { name, dataUrl }
+    steps: [""]
+  };
+
+  // ------- 要素 -------
+  const titleEl = document.getElementById("title");
+  const bodyEl = document.getElementById("body");
+  const tipEl = document.getElementById("tip");
+  const stepListEl = document.getElementById("stepList");
+  const imageGridEl = document.getElementById("imageGrid");
+  const imageInputEl = document.getElementById("imageInput");
+  const genreChipsEl = document.getElementById("genreChips");
+  const prefectureEl = document.getElementById("prefecture");
+  const durationEl = document.getElementById("duration");
+  const budgetEl = document.getElementById("budget");
+  const submitBtn = document.getElementById("submitBtn");
+  const submitStatus = document.getElementById("submitStatus");
+
+  // ------- 初期描画 -------
+  function renderGenres() {
+    genreChipsEl.innerHTML = GENRES.map(g =>
+      `<button type="button" class="chip" data-genre="${g.key}" aria-pressed="false">${g.label}</button>`
+    ).join("");
+  }
+
+  function renderPrefectures() {
+    prefectureEl.insertAdjacentHTML("beforeend",
+      PREFECTURES.map(p => `<option value="${p}">${p}</option>`).join(""));
+  }
+
+  function renderSteps() {
+    stepListEl.innerHTML = state.steps.map((s, i) => `
+      <li>
+        <input type="text" class="step-input" data-index="${i}" maxlength="120"
+          value="${escapeAttr(s)}" placeholder="例：好きな推しのイラストを印刷する">
+        <button type="button" class="step-remove" data-index="${i}" aria-label="${i + 1}番目の手順を削除">✕</button>
+      </li>
+    `).join("");
+  }
+
+  function renderImages() {
+    const items = state.images.map((img, i) => `
+      <div class="image-item">
+        <img src="${img.dataUrl}" alt="${escapeAttr(img.name)}">
+        <button type="button" class="image-item__remove" data-index="${i}" aria-label="画像を削除">✕</button>
+      </div>
+    `).join("");
+
+    const addBtn = state.images.length < MAX_IMAGES
+      ? `<button type="button" class="image-add" id="imageAdd">
+           <span class="plus" aria-hidden="true">＋</span>
+           <span>写真を選ぶ</span>
+         </button>`
+      : "";
+
+    imageGridEl.innerHTML = items + addBtn;
+  }
+
+  // ------- ヘルパー -------
+  function escapeAttr(str) {
+    return String(str).replace(/[&<>"']/g, ch => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[ch]));
+  }
+
+  // 必須は「テキスト（タイトル＋本文）」「画像」「ジャンル」の3つ
+  function validate() {
+    const missing = [];
+    if (!titleEl.value.trim() || !bodyEl.value.trim()) missing.push("テキスト");
+    if (state.images.length === 0) missing.push("画像");
+    if (!state.genre) missing.push("ジャンル");
+
+    submitBtn.disabled = missing.length > 0;
+    submitStatus.textContent = missing.length > 0
+      ? `未入力：${missing.join("・")}`
+      : "投稿できます";
+  }
+
+  function updateCounter(el, counterEl, max) {
+    const len = el.value.length;
+    counterEl.textContent = `${len} / ${max}`;
+    counterEl.classList.toggle("is-over", len >= max);
+  }
+
+  // ------- イベント -------
+  titleEl.addEventListener("input", validate);
+
+  bodyEl.addEventListener("input", () => {
+    updateCounter(bodyEl, document.getElementById("bodyCounter"), 1000);
+    validate();
+  });
+
+  tipEl.addEventListener("input", () => {
+    updateCounter(tipEl, document.getElementById("tipCounter"), 200);
+  });
+
+  // ジャンルは単一選択
+  genreChipsEl.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    const key = chip.dataset.genre;
+    state.genre = state.genre === key ? "" : key;
+    genreChipsEl.querySelectorAll(".chip").forEach(c => {
+      const active = c.dataset.genre === state.genre;
+      c.classList.toggle("is-active", active);
+      c.setAttribute("aria-pressed", String(active));
+    });
+    validate();
+  });
+
+  // 手順の追加・削除・編集。再描画で要素が入れ替わるのでイベント委任にする
+  document.getElementById("addStep").addEventListener("click", () => {
+    state.steps.push("");
+    renderSteps();
+    const inputs = stepListEl.querySelectorAll(".step-input");
+    inputs[inputs.length - 1].focus();
+  });
+
+  stepListEl.addEventListener("input", (e) => {
+    const input = e.target.closest(".step-input");
+    if (!input) return;
+    state.steps[Number(input.dataset.index)] = input.value;
+  });
+
+  stepListEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".step-remove");
+    if (!btn) return;
+    state.steps.splice(Number(btn.dataset.index), 1);
+    if (state.steps.length === 0) state.steps.push("");
+    renderSteps();
+  });
+
+  // 画像の追加・削除
+  imageGridEl.addEventListener("click", (e) => {
+    if (e.target.closest("#imageAdd")) {
+      imageInputEl.click();
+      return;
+    }
+    const removeBtn = e.target.closest(".image-item__remove");
+    if (removeBtn) {
+      state.images.splice(Number(removeBtn.dataset.index), 1);
+      renderImages();
+      validate();
+    }
+  });
+
+  imageInputEl.addEventListener("change", () => {
+    const files = Array.from(imageInputEl.files).slice(0, MAX_IMAGES - state.images.length);
+    let remaining = files.length;
+    if (remaining === 0) return;
+
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.images.push({ name: file.name, dataUrl: reader.result });
+        remaining -= 1;
+        if (remaining === 0) {
+          renderImages();
+          validate();
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 同じファイルを選び直せるようにクリアする
+    imageInputEl.value = "";
+  });
+
+  // ------- 送信 -------
+  document.getElementById("postForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (submitBtn.disabled) return;
+
+    const payload = {
+      title: titleEl.value.trim(),
+      body: bodyEl.value.trim(),
+      steps: state.steps.map(s => s.trim()).filter(Boolean),
+      tip: tipEl.value.trim(),
+      images: state.images.map(img => img.dataUrl),
+      genre: state.genre,
+      genreLabel: GENRES.find(g => g.key === state.genre)?.label ?? "",
+      prefecture: prefectureEl.value,
+      durationMin: durationEl.value ? Number(durationEl.value) : null,
+      budget: budgetEl.value ? Number(budgetEl.value) : null
+    };
+
+    // TODO: API (POST /api/posts) ができたらここで送信する
+    console.log("投稿データ", payload);
+    showDone();
+  });
+
+  function showDone() {
+    document.querySelector("main").innerHTML = `
+      <div class="done">
+        <div class="done__mark" aria-hidden="true">🌟</div>
+        <h2>投稿しました！</h2>
+        <p>まだ保存先のAPIがつながっていないため、内容はブラウザのコンソールに出力しています。</p>
+        <div class="done__actions">
+          <a class="primary" href="../index.html">トップにもどる</a>
+          <button type="button" onclick="location.reload()">つづけて投稿する</button>
+        </div>
+      </div>
+    `;
+    document.getElementById("submitBar").remove();
+    window.scrollTo(0, 0);
+  }
+
+  // ------- 起動 -------
+  renderGenres();
+  renderPrefectures();
+  renderSteps();
+  renderImages();
+  validate();
+</script>
+
+</body>
+</html>
