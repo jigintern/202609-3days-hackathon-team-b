@@ -5,7 +5,7 @@
 // ルーターライブラリを入れていないのは、依存なしで完結させるため。
 
 import type { Env } from "./types";
-import { error, json } from "./http";
+import { CORS_HEADERS, error, json, preflight } from "./http";
 import * as posts from "./posts";
 import * as reports from "./reports";
 import * as images from "./images";
@@ -26,6 +26,9 @@ export default {
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const method = request.method.toUpperCase();
+
+  // プリフライトはルーティングより先に返す
+  if (method === "OPTIONS") return preflight();
 
   // "/api/posts/abc/like" -> ["posts", "abc", "like"]
   const segments = url.pathname.replace(/^\/api\/?/, "").split("/").filter(Boolean);
@@ -130,6 +133,10 @@ async function route(request: Request, env: Env): Promise<Response> {
 function methodNotAllowed(allow: string): Response {
   return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
     status: 405,
-    headers: { "Content-Type": "application/json; charset=utf-8", Allow: allow },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Allow: allow,
+      ...CORS_HEADERS,
+    },
   });
 }
