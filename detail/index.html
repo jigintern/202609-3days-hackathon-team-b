@@ -571,58 +571,30 @@
 </main>
 
 <script>
-  // ------- Mock data（後でAPIに差し替え予定） -------
-  const post = {
-    genre: "グッズ制作",
-    title: "推しの缶バッジ風アクセサリー作り",
-    author: "みさき",
-    date: "2026/09/10",
-    area: "東京都",
-    time: "約3時間",
-    budget: "2,500円",
-    images: [
-      "https://placehold.jp/ffef6c/222222/600x450.png?text=完成写真",
-      "https://placehold.jp/f5f5f5/222222/600x450.png?text=材料一覧",
-      "https://placehold.jp/f5f5f5/222222/600x450.png?text=作業風景"
-    ],
-    desc: "推しのイラストを使ったオリジナル缶バッジを手作りしました。\n100均とお店で揃う材料だけで、初心者でも30分〜1時間ほどで完成します！",
-    materials: [
-      "缶バッジキット(38mm) ×5",
-      "コピー用紙（印刷用）",
-      "はさみ・カッター",
-      "クリアシール",
-      "推しのイラストデータ"
-    ],
-    steps: [
-      "好きな推しのイラストを印刷する",
-      "缶バッジのテンプレートサイズに合わせて丸く切り抜く",
-      "キットのパーツにイラストをセットする",
-      "専用プレス機でしっかり圧着する",
-      "完成！ピンやマグネットをつけて持ち歩こう"
-    ],
-    tip: "近くに「手芸センタードリーム 新宿店」があるので、材料調達に立ち寄るのがおすすめです。",
-    likeCount: 128,
-    liked: false
-  };
+  // ------- API state -------
+  const postId = new URLSearchParams(location.search).get("id");
+  let post = null;
+  let reports = [];
+  let activeImageIndex = 0;
 
-  let reports = [
-    {
-      id: 1,
-      name: "ゆか",
-      text: "実際に作ってみました！思ったより簡単で30分で完成しました✨",
-      image: "https://placehold.jp/fafafa/222222/400x300.png?text=完成品",
-      likes: 12,
-      liked: false
-    },
-    {
-      id: 2,
-      name: "たくみ",
-      text: "缶バッジキットが100均でも売っていたので、さらに節約できました！",
-      image: null,
-      likes: 8,
-      liked: false
+  const LIKED_POSTS_KEY = "oshipi:likedPosts";
+  const LIKED_REPORTS_KEY = "oshipi:likedReports";
+
+  function loadLikedSet(key) {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(key) ?? "[]"));
+    } catch (err) {
+      return new Set();
     }
-  ];
+  }
+  function saveLikedSet(key, set) {
+    try {
+      localStorage.setItem(key, JSON.stringify([...set]));
+    } catch (err) { /* ストレージ利用不可時は何もしない */ }
+  }
+
+  const likedPosts = loadLikedSet(LIKED_POSTS_KEY);
+  const likedReports = loadLikedSet(LIKED_REPORTS_KEY);
 
   // ------- Helpers -------
   function escapeHtml(str) {
@@ -631,14 +603,37 @@
     }[ch]));
   }
 
+  function formatBudget(yen) {
+    return yen === 0 ? "無料" : `¥${yen.toLocaleString("ja-JP")}`;
+  }
+  function formatDuration(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h && m) return `${h}時間${m}分`;
+    if (h) return `${h}時間`;
+    return `${m}分`;
+  }
+  function formatDate(isoDate) {
+    const d = new Date(isoDate);
+    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  async function uploadImage(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch("/api/images", { method: "POST", body: formData });
+    if (!res.ok) throw new Error("画像のアップロードに失敗しました");
+    return res.json();
+  }
+
   // ------- Render -------
-  let activeImageIndex = 0;
   function renderGallery() {
     const mainImg = document.getElementById("heroMain");
     mainImg.src = post.images[activeImageIndex];
     mainImg.alt = escapeHtml(post.title);
 
     const thumbs = document.getElementById("heroThumbs");
+    thumbs.style.display = post.images.length > 1 ? "flex" : "none";
     thumbs.innerHTML = post.images.map((src, i) =>
       `<img src="${src}" class="${i === activeImageIndex ? "active" : ""}" data-index="${i}" alt="サムネイル${i + 1}">`
     ).join("");
@@ -652,23 +647,25 @@
   }
 
   function renderPost() {
-    document.getElementById("genreBadge").textContent = post.genre;
+    document.getElementById("genreBadge").textContent = post.genreLabel;
     document.getElementById("postTitle").textContent = post.title;
-    document.getElementById("postAuthor").textContent = post.author;
-    document.getElementById("postDate").textContent = post.date;
-    document.getElementById("statArea").textContent = post.area;
-    document.getElementById("statTime").textContent = post.time;
-    document.getElementById("statBudget").textContent = post.budget;
-    document.getElementById("postDesc").textContent = post.desc;
+    document.getElementById("postAuthor").textContent = post.authorName;
+    document.getElementById("postDate").textContent = formatDate(post.createdAt);
+    document.getElementById("statArea").textContent = post.prefecture || "ー";
+    document.getElementById("statTime").textContent = formatDuration(post.durationMin);
+    document.getElementById("statBudget").textContent = formatBudget(post.budget);
+    document.getElementById("postDesc").textContent = post.body;
 
-    document.getElementById("materialCount").textContent = `(${post.materials.length})`;
-    document.getElementById("materialList").innerHTML = post.materials
+    const materials = post.materials || [];
+    document.getElementById("materialCount").textContent = `(${materials.length})`;
+    document.getElementById("materialList").innerHTML = materials
       .map(m => `<li><span class="dot"></span>${escapeHtml(m)}</li>`).join("");
 
-    document.getElementById("stepList").innerHTML = post.steps
+    const steps = post.steps || [];
+    document.getElementById("stepList").innerHTML = steps
       .map(s => `<li>${escapeHtml(s)}</li>`).join("");
 
-    document.getElementById("tipText").textContent = post.tip;
+    document.getElementById("tipText").textContent = post.tip || "";
     document.getElementById("tipCard").style.display = post.tip ? "flex" : "none";
 
     updateLikeUI();
@@ -676,39 +673,56 @@
 
   function updateLikeUI() {
     const btn = document.getElementById("likeBtn");
-    btn.classList.toggle("liked", post.liked);
-    btn.querySelector(".heart").textContent = post.liked ? "❤️" : "🤍";
+    const isLiked = likedPosts.has(post.id);
+    btn.classList.toggle("liked", isLiked);
+    btn.querySelector(".heart").textContent = isLiked ? "❤️" : "🤍";
     document.getElementById("likeCount").textContent = post.likeCount;
   }
 
   function renderReports() {
     document.getElementById("reportCount").textContent = `(${reports.length})`;
-    document.getElementById("reportList").innerHTML = reports.map(r => `
+    document.getElementById("reportList").innerHTML = reports.map(r => {
+      const isLiked = likedReports.has(r.id);
+      return `
       <div class="report-item">
-        <div class="avatar">${escapeHtml(r.name.charAt(0))}</div>
+        <div class="avatar">${escapeHtml(r.authorName.charAt(0))}</div>
         <div class="report-body">
-          <div class="report-name">${escapeHtml(r.name)}</div>
-          <div class="report-text">${escapeHtml(r.text)}</div>
-          ${r.image ? `<img class="report-image" src="${r.image}" alt="レポート画像">` : ""}
+          <div class="report-name">${escapeHtml(r.authorName)}</div>
+          <div class="report-text">${escapeHtml(r.body)}</div>
+          ${r.imageUrl ? `<img class="report-image" src="${r.imageUrl}" alt="レポート画像">` : ""}
           <div class="report-footer">
-            <button class="report-like-btn ${r.liked ? "liked" : ""}" data-id="${r.id}">
-              ${r.liked ? "❤️" : "🤍"} ${r.likes}
+            <button class="report-like-btn ${isLiked ? "liked" : ""}" data-id="${r.id}">
+              ${isLiked ? "❤️" : "🤍"} ${r.likeCount}
             </button>
           </div>
         </div>
       </div>
-    `).join("");
+    `;
+    }).join("");
   }
 
   // ------- Events -------
-  document.getElementById("likeBtn").addEventListener("click", () => {
-    post.liked = !post.liked;
-    post.likeCount += post.liked ? 1 : -1;
-    updateLikeUI();
+  document.getElementById("likeBtn").addEventListener("click", async () => {
+    if (!post) return;
+    const isLiked = likedPosts.has(post.id);
+    try {
+      const res = await fetch(`/api/posts/${encodeURIComponent(post.id)}/like`, {
+        method: isLiked ? "DELETE" : "POST",
+      });
+      if (!res.ok) throw new Error("いいねに失敗しました");
+      const data = await res.json();
+      post.likeCount = data.likeCount;
+      if (isLiked) likedPosts.delete(post.id); else likedPosts.add(post.id);
+      saveLikedSet(LIKED_POSTS_KEY, likedPosts);
+      updateLikeUI();
+    } catch (err) {
+      console.error(err);
+    }
   });
 
   document.getElementById("shareBtn").addEventListener("click", async () => {
-    const shareData = { title: post.title, text: post.desc, url: location.href };
+    if (!post) return;
+    const shareData = { title: post.title, text: post.body, url: location.href };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch (err) { /* ユーザーがキャンセル */ }
       return;
@@ -725,21 +739,32 @@
 
   // いいねボタンはレポートを再描画するたびに増えるので、
   // 親要素への委任で1つのリスナーだけを使う
-  document.getElementById("reportList").addEventListener("click", (e) => {
+  document.getElementById("reportList").addEventListener("click", async (e) => {
     const btn = e.target.closest(".report-like-btn");
     if (!btn) return;
-    const id = Number(btn.dataset.id);
-    const r = reports.find(x => x.id === id);
-    r.liked = !r.liked;
-    r.likes += r.liked ? 1 : -1;
-    renderReports();
+    const id = btn.dataset.id;
+    const isLiked = likedReports.has(id);
+    try {
+      const res = await fetch(`/api/reports/${encodeURIComponent(id)}/like`, {
+        method: isLiked ? "DELETE" : "POST",
+      });
+      if (!res.ok) throw new Error("いいねに失敗しました");
+      const data = await res.json();
+      const r = reports.find(x => x.id === id);
+      if (r) r.likeCount = data.likeCount;
+      if (isLiked) likedReports.delete(id); else likedReports.add(id);
+      saveLikedSet(LIKED_REPORTS_KEY, likedReports);
+      renderReports();
+    } catch (err) {
+      console.error(err);
+    }
   });
 
   const reportInput = document.getElementById("reportInput");
   const submitBtn = document.getElementById("submitReport");
   const attachBtn = document.getElementById("attachBtn");
   const reportImageInput = document.getElementById("reportImageInput");
-  let attachedImage = null;
+  let attachedFile = null;
 
   reportInput.addEventListener("input", () => {
     submitBtn.disabled = reportInput.value.trim().length === 0;
@@ -749,29 +774,73 @@
   reportImageInput.addEventListener("change", () => {
     const file = reportImageInput.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      attachedImage = reader.result;
-      attachBtn.textContent = `✅ ${file.name}`;
-    };
-    reader.readAsDataURL(file);
+    attachedFile = file;
+    attachBtn.textContent = `✅ ${file.name}`;
   });
 
-  submitBtn.addEventListener("click", () => {
+  submitBtn.addEventListener("click", async () => {
     const text = reportInput.value.trim();
-    if (!text) return;
-    reports = [{ id: Date.now(), name: "あなた", text, image: attachedImage, likes: 0, liked: false }, ...reports];
-    reportInput.value = "";
-    reportImageInput.value = "";
-    attachedImage = null;
-    attachBtn.textContent = "📷 画像を追加";
+    if (!text || !postId) return;
+
     submitBtn.disabled = true;
-    renderReports();
+    submitBtn.textContent = "投稿中…";
+    try {
+      let imageUrl = null;
+      if (attachedFile) {
+        const uploaded = await uploadImage(attachedFile);
+        imageUrl = uploaded.url;
+      }
+      const res = await fetch(`/api/posts/${encodeURIComponent(postId)}/reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: text, imageUrl }),
+      });
+      if (!res.ok) throw new Error("レポートの投稿に失敗しました");
+      const created = await res.json();
+      reports = [created, ...reports];
+      reportInput.value = "";
+      reportImageInput.value = "";
+      attachedFile = null;
+      attachBtn.textContent = "📷 画像を追加";
+      renderReports();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      submitBtn.disabled = reportInput.value.trim().length === 0;
+      submitBtn.textContent = "投稿する";
+    }
   });
 
-  renderGallery();
-  renderPost();
-  renderReports();
+  // ------- Init -------
+  async function init() {
+    if (!postId) {
+      document.getElementById("postTitle").textContent = "投稿が指定されていません";
+      return;
+    }
+    try {
+      const res = await fetch(`/api/posts/${encodeURIComponent(postId)}`);
+      if (!res.ok) {
+        document.getElementById("postTitle").textContent =
+          res.status === 404 ? "投稿が見つかりませんでした" : "投稿の読み込みに失敗しました";
+        return;
+      }
+      post = await res.json();
+      renderGallery();
+      renderPost();
+
+      const reportsRes = await fetch(`/api/posts/${encodeURIComponent(postId)}/reports`);
+      if (reportsRes.ok) {
+        const data = await reportsRes.json();
+        reports = data.reports;
+        renderReports();
+      }
+    } catch (err) {
+      console.error(err);
+      document.getElementById("postTitle").textContent = "投稿の読み込みに失敗しました";
+    }
+  }
+
+  init();
 </script>
 
 </body>
