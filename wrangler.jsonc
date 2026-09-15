@@ -1,0 +1,24 @@
+{
+	"name": "202609-3days-hackathon-team-b",
+	"main": "./api/index.ts",
+	"compatibility_date": "2026-09-15",
+	// ./ 以下の静的ファイルを配信する。/api/* のように
+	// 該当ファイルがないパスだけが api/index.ts に渡る
+	"assets": {
+		"directory": "./"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "hackathon-team-b",
+			// wrangler d1 create で作成済み
+			"database_id": "8e436965-8f0a-434d-af4e-806b24d9df3e"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "BUCKET",
+			"bucket_name": "hackathon-team-b"
+		}
+	]
+}
