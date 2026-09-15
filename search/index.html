@@ -92,16 +92,20 @@ button, select, input, textarea { font-family: inherit; }
 }
 .btn-primary {
   display: inline-block;
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--ink);
   font-weight: 700;
   font-size: 0.9rem;
   text-decoration: none;
-  padding: 0.7em 1.4em;
+  padding: 0.65em 1.35em;
+  border: 1px solid rgba(3, 3, 3, 0.08);
   border-radius: 10px;
-  transition: opacity 0.15s ease;
+  transition: filter 0.15s ease;
 }
-.btn-primary:hover { opacity: 0.82; }
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  filter: brightness(0.92);
+}
 
 /* ============================================================
    PAGE INTRO

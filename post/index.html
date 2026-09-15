@@ -66,14 +66,13 @@ button, select, input, textarea { font-family: inherit; }
   justify-content: space-between;
   gap: 12px;
   padding: 14px var(--gutter);
-  background: rgba(247, 247, 247, 0.92);
-  backdrop-filter: blur(6px);
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
 .site-logo {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 1.15rem;
+  font-size: 1.5rem;
   text-decoration: none;
 }
 .header-cancel {
@@ -84,6 +83,12 @@ button, select, input, textarea { font-family: inherit; }
   padding: 0.45em 1.1em;
   border-radius: 999px;
   text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.header-cancel:hover,
+.header-cancel:focus-visible {
+  border-color: var(--ink-muted);
+  color: var(--ink);
 }
 
 /* ============================================================

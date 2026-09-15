@@ -105,6 +105,23 @@ button, select, input { font-family: inherit; }
 .btn-primary:focus-visible {
   filter: brightness(0.92);
 }
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.nav-link {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.nav-link:hover,
+.nav-link:focus-visible {
+  color: var(--ink);
+}
 
 /* ============================================================
    LAYOUT: HERO
@@ -343,7 +360,10 @@ button, select, input { font-family: inherit; }
 <header class="site-header">
   <div class="container">
     <a class="site-logo" href="index.html">オシピ！</a>
-    <a class="btn-primary" href="post/index.html">投稿する</a>
+    <nav class="nav-links">
+      <a class="nav-link" href="search/index.html">予算で探す</a>
+      <a class="btn-primary" href="post/index.html">投稿する</a>
+    </nav>
   </div>
 </header>
 

@@ -5,6 +5,11 @@
 <link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>詳細画面</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+
 <style>
   :root {
     --accent: #FFEF6C;
@@ -32,8 +37,7 @@
     position: sticky;
     top: 0;
     z-index: 20;
-    background: rgba(255,255,255,0.92);
-    backdrop-filter: blur(6px);
+    background: #F7F7F7;
     border-bottom: 1px solid var(--line);
   }
   .navbar-inner {
@@ -50,18 +54,21 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 20px;
-    font-weight: 800;
-    color: var(--text);
+    font-family: 'Kiwi Maru', serif;
+    font-weight: 500;
+    font-size: 1.5rem;
+    color: #030303;
     text-decoration: none;
     flex-shrink: 0;
   }
   .nav-links {
     display: flex;
+    align-items: center;
     gap: 28px;
     flex-wrap: wrap;
   }
   .nav-links a {
+    font-family: 'Zen Kaku Gothic New', sans-serif;
     color: var(--text-sub);
     text-decoration: none;
     font-size: 14px;
@@ -69,6 +76,21 @@
     white-space: nowrap;
   }
   .nav-links a:hover { color: var(--text); }
+  .nav-links a.btn-primary {
+    display: inline-block;
+    background: var(--accent);
+    color: #030303;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.65em 1.35em;
+    border: 1px solid rgba(3, 3, 3, 0.08);
+    border-radius: 10px;
+    transition: filter 0.15s ease;
+  }
+  .nav-links a.btn-primary:hover {
+    color: #030303;
+    filter: brightness(0.92);
+  }
 
   /* Layout */
   .layout {
@@ -454,13 +476,13 @@
 
 <header class="navbar">
   <div class="navbar-inner">
-    <span class="logo">
+    <a class="logo" href="../index.html">
       オシピ！
-    </span>
+    </a>
     <nav class="nav-links">
       <a href="../index.html">トップ</a>
       <a href="../search/index.html">予算で探す</a>
-      <a href="../post/index.html">投稿する</a>
+      <a class="btn-primary" href="../post/index.html">投稿する</a>
     </nav>
   </div>
 </header>
