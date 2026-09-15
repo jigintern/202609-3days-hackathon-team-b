@@ -561,6 +561,11 @@ input:focus { outline: none; border-color: var(--accent-dark); }
 
 <script>
   /* ============================================================
+     API接続先（本番のオシピ！サーバーに直接リクエストする）
+     ============================================================ */
+  const API_BASE = "https://intern-b.tekitou.app";
+
+  /* ============================================================
      GENRES（GET /api/genres から取得。取得できるまでは空のまま）
      ============================================================ */
   let GENRES = [];
@@ -709,7 +714,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
      ============================================================ */
   async function fetchGenres() {
     try {
-      const res = await fetch("/api/genres");
+      const res = await fetch(`${API_BASE}/api/genres`);
       if (!res.ok) throw new Error(`ジャンル一覧の取得に失敗しました (${res.status})`);
       const data = await res.json();
       GENRES = data.genres ?? [];
@@ -746,7 +751,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     countEl.textContent = "検索中…";
 
     try {
-      const res = await fetch(`/api/posts?${buildSearchParams().toString()}`);
+      const res = await fetch(`${API_BASE}/api/posts?${buildSearchParams().toString()}`);
       if (seq !== requestSeq) return; // 後から送った検索の結果だけを反映する
       if (!res.ok) throw new Error(`検索に失敗しました (${res.status})`);
       const data = await res.json();
@@ -897,7 +902,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
 
       btn.disabled = true;
       try {
-        const res = await fetch(`/api/posts/${encodeURIComponent(postId)}/like`, { method });
+        const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(postId)}/like`, { method });
         if (!res.ok) throw new Error(`いいねに失敗しました (${res.status})`);
         const data = await res.json();
 
