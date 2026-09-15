@@ -434,6 +434,11 @@ button, select, input { font-family: inherit; }
       <p>予算やキーワード、ジャンルを変えて、もう一度探してみてください。</p>
       <button type="button" id="reset-filters">絞り込みをリセット</button>
     </div>
+    <div class="empty-state" id="fetch-error" hidden>
+      <h2>投稿を取得できませんでした</h2>
+      <p>通信環境をご確認のうえ、もう一度お試しください。</p>
+      <button type="button" id="retry-btn">再試行する</button>
+    </div>
     <div class="feed-grid" id="feed-grid"></div>
   </div>
 </main>
@@ -505,14 +510,19 @@ function saveLikedIds(likedIds) {
    FORMAT HELPERS
    ============================================================ */
 function formatBudget(yen) {
+  if (yen == null) return "予算未設定";
   return yen === 0 ? "無料" : `¥${yen.toLocaleString("ja-JP")}`;
 }
 function formatDuration(minutes) {
+  if (minutes == null) return "時間未設定";
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   if (h && m) return `${h}時間${m}分`;
   if (h) return `${h}時間`;
   return `${m}分`;
+}
+function toAbsoluteApiUrl(path) {
+  return new URL(path, API_BASE).toString();
 }
 function formatDate(isoDate) {
   const d = new Date(isoDate);
@@ -542,7 +552,7 @@ function renderPostCard(post, index, likedIds) {
 
   if (post.images && post.images.length > 0) {
     const img = document.createElement("img");
-    img.src = post.images[0];
+    img.src = toAbsoluteApiUrl(post.images[0]);
     img.alt = post.title;
     img.loading = "lazy";
     media.append(img);
@@ -603,7 +613,13 @@ function renderPostList(posts, likedIds) {
   emptyState.hidden = !isEmpty;
   grid.hidden = isEmpty;
 
-  posts.forEach((post, index) => grid.appendChild(renderPostCard(post, index, likedIds)));
+  posts.forEach((post, index) => {
+    try {
+      grid.appendChild(renderPostCard(post, index, likedIds));
+    } catch (err) {
+      console.error(`投稿 ${post.id} の描画に失敗しました`, err);
+    }
+  });
 }
 
 /* ============================================================
@@ -651,14 +667,29 @@ document.addEventListener("DOMContentLoaded", () => {
   const chipButtons = Array.from(document.querySelectorAll(".chip"));
   const genreSelect = document.getElementById("genre-select");
   const resetButton = document.getElementById("reset-filters");
+  const emptyState = document.getElementById("empty-state");
+  const fetchError = document.getElementById("fetch-error");
+  const feedGrid = document.getElementById("feed-grid");
+
+  // 絞り込みを素早く切り替えると複数のリクエストが並行するので、
+  // 連番を振って最新のリクエストの結果だけを反映する
+  let requestSeq = 0;
 
   async function applyFilters() {
+    const seq = ++requestSeq;
+    emptyState.hidden = true;
+    fetchError.hidden = true;
+
     try {
       const posts = await fetchPosts(state);
+      if (seq !== requestSeq) return;
       renderPostList(posts, likedIds);
     } catch (err) {
+      if (seq !== requestSeq) return;
       console.error(err);
-      renderPostList([], likedIds);
+      feedGrid.innerHTML = "";
+      feedGrid.hidden = true;
+      fetchError.hidden = false;
     }
   }
   const applyFiltersDebounced = debounce(applyFilters, 300);
@@ -687,6 +718,8 @@ document.addEventListener("DOMContentLoaded", () => {
     state.genre = event.target.value;
     applyFilters();
   });
+
+  document.getElementById("retry-btn").addEventListener("click", applyFilters);
 
   resetButton.addEventListener("click", () => {
     state.keyword = "";
