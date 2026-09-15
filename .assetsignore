@@ -1,0 +1,9 @@
+# 静的アセットとして配信しないもの
+.assetsignore
+wrangler.jsonc
+api
+.github
+**/.git
+**/node_modules
+**/.DS_Store
+.wrangler
