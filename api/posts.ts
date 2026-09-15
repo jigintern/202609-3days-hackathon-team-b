@@ -1,10 +1,10 @@
 // 投稿のハンドラ。
 
 import type { Env } from "./types";
-import { GENRE_KEYS, PREFECTURES } from "./types";
+import { GENRE_KEYS, PREFECTURES, randomName } from "./types";
 import * as db from "./db";
 import {
-  clientId, error, intParam, json, listParam, noContent,
+  error, intParam, json, listParam, noContent,
   optInt, optStr, readJson, str, strArray,
 } from "./http";
 
@@ -36,15 +36,14 @@ export async function listPosts(request: Request, env: Env): Promise<Response> {
     sort,
     limit,
     offset,
-    clientId: clientId(request),
   });
 
   return json({ posts, total, limit, offset, hasMore: offset + posts.length < total });
 }
 
 /** GET /api/posts/:id */
-export async function getPost(id: string, request: Request, env: Env): Promise<Response> {
-  const post = await db.getPost(env, id, clientId(request));
+export async function getPost(id: string, env: Env): Promise<Response> {
+  const post = await db.getPost(env, id);
   return post ? json(post) : error("投稿が見つかりません", 404);
 }
 
@@ -80,15 +79,15 @@ export async function createPost(request: Request, env: Env): Promise<Response> 
     prefecture,
     durationMin: optInt(body.durationMin, 0, 10080),
     budget: optInt(body.budget, 0, 1000000),
-    authorName: optStr(body.authorName, 20) || "匿名",
+    // 未指定なら「ゆかいなカワウソ42」のような名前を割り当てる
+    authorName: optStr(body.authorName, 20) || randomName(),
     images,
     steps: strArray(body.steps, 30, 120),
     materials: strArray(body.materials, 30, 120),
     tags: strArray(body.tags, 10, 20),
   });
 
-  const created = await db.getPost(env, id, clientId(request));
-  return json(created, 201);
+  return json(await db.getPost(env, id), 201);
 }
 
 /** PATCH /api/posts/:id */
@@ -133,7 +132,7 @@ export async function updatePost(id: string, request: Request, env: Env): Promis
   }
 
   if ("tip" in body) patch.tip = optStr(body.tip, 200);
-  if ("authorName" in body) patch.authorName = optStr(body.authorName, 20) || "匿名";
+  if ("authorName" in body) patch.authorName = optStr(body.authorName, 20) || randomName();
   if ("durationMin" in body) patch.durationMin = optInt(body.durationMin, 0, 10080);
   if ("budget" in body) patch.budget = optInt(body.budget, 0, 1000000);
   if ("steps" in body) patch.steps = strArray(body.steps, 30, 120);
@@ -143,7 +142,7 @@ export async function updatePost(id: string, request: Request, env: Env): Promis
   const updated = await db.updatePost(env, id, patch);
   if (!updated) return error("更新するフィールドがありません", 400);
 
-  return json(await db.getPost(env, id, clientId(request)));
+  return json(await db.getPost(env, id));
 }
 
 /** DELETE /api/posts/:id */
@@ -154,19 +153,8 @@ export async function deletePost(id: string, env: Env): Promise<Response> {
 }
 
 /** POST /api/posts/:id/like, DELETE /api/posts/:id/like */
-export async function togglePostLike(
-  id: string,
-  request: Request,
-  env: Env,
-  like: boolean,
-): Promise<Response> {
-  const cid = clientId(request);
-  if (!cid) return error("X-Client-Id ヘッダーが必要です", 400);
+export async function togglePostLike(id: string, env: Env, like: boolean): Promise<Response> {
   if (!(await db.postExists(env, id))) return error("投稿が見つかりません", 404);
-
-  const likeCount = like
-    ? await db.likePost(env, id, cid)
-    : await db.unlikePost(env, id, cid);
-
-  return json({ postId: id, likeCount, liked: like });
+  const likeCount = await db.addPostLike(env, id, like ? 1 : -1);
+  return json({ postId: id, likeCount });
 }

@@ -1,13 +1,14 @@
 // 「行ってきましたレポート」のハンドラ。
 
 import type { Env } from "./types";
+import { randomName } from "./types";
 import * as db from "./db";
-import { clientId, error, json, noContent, optStr, readJson, str } from "./http";
+import { error, json, noContent, optStr, readJson, str } from "./http";
 
 /** GET /api/posts/:id/reports */
-export async function listReports(postId: string, request: Request, env: Env): Promise<Response> {
+export async function listReports(postId: string, env: Env): Promise<Response> {
   if (!(await db.postExists(env, postId))) return error("投稿が見つかりません", 404);
-  const reports = await db.listReports(env, postId, clientId(request));
+  const reports = await db.listReports(env, postId);
   return json({ reports, total: reports.length });
 }
 
@@ -25,12 +26,12 @@ export async function createReport(postId: string, request: Request, env: Env): 
 
   const id = await db.createReport(env, {
     postId,
-    authorName: optStr(body.authorName, 20) || "匿名",
+    authorName: optStr(body.authorName, 20) || randomName(),
     body: text,
     imageUrl: imageUrl || null,
   });
 
-  return json(await db.getReport(env, id, clientId(request)), 201);
+  return json(await db.getReport(env, id), 201);
 }
 
 /** DELETE /api/reports/:id */
@@ -41,19 +42,8 @@ export async function deleteReport(id: string, env: Env): Promise<Response> {
 }
 
 /** POST /api/reports/:id/like, DELETE /api/reports/:id/like */
-export async function toggleReportLike(
-  id: string,
-  request: Request,
-  env: Env,
-  like: boolean,
-): Promise<Response> {
-  const cid = clientId(request);
-  if (!cid) return error("X-Client-Id ヘッダーが必要です", 400);
+export async function toggleReportLike(id: string, env: Env, like: boolean): Promise<Response> {
   if (!(await db.reportExists(env, id))) return error("レポートが見つかりません", 404);
-
-  const likeCount = like
-    ? await db.likeReport(env, id, cid)
-    : await db.unlikeReport(env, id, cid);
-
-  return json({ reportId: id, likeCount, liked: like });
+  const likeCount = await db.addReportLike(env, id, like ? 1 : -1);
+  return json({ reportId: id, likeCount });
 }

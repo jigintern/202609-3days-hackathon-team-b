@@ -51,7 +51,7 @@ async function route(request: Request, env: Env): Promise<Response> {
 
       // /api/posts/:id
       if (!sub) {
-        if (method === "GET") return posts.getPost(id, request, env);
+        if (method === "GET") return posts.getPost(id, env);
         if (method === "PATCH" || method === "PUT") return posts.updatePost(id, request, env);
         if (method === "DELETE") return posts.deletePost(id, env);
         return methodNotAllowed("GET, PATCH, DELETE");
@@ -59,14 +59,14 @@ async function route(request: Request, env: Env): Promise<Response> {
 
       // /api/posts/:id/like
       if (sub === "like") {
-        if (method === "POST") return posts.togglePostLike(id, request, env, true);
-        if (method === "DELETE") return posts.togglePostLike(id, request, env, false);
+        if (method === "POST") return posts.togglePostLike(id, env, true);
+        if (method === "DELETE") return posts.togglePostLike(id, env, false);
         return methodNotAllowed("POST, DELETE");
       }
 
       // /api/posts/:id/reports
       if (sub === "reports") {
-        if (method === "GET") return reports.listReports(id, request, env);
+        if (method === "GET") return reports.listReports(id, env);
         if (method === "POST") return reports.createReport(id, request, env);
         return methodNotAllowed("GET, POST");
       }
@@ -85,8 +85,8 @@ async function route(request: Request, env: Env): Promise<Response> {
 
       // /api/reports/:id/like
       if (sub === "like") {
-        if (method === "POST") return reports.toggleReportLike(id, request, env, true);
-        if (method === "DELETE") return reports.toggleReportLike(id, request, env, false);
+        if (method === "POST") return reports.toggleReportLike(id, env, true);
+        if (method === "DELETE") return reports.toggleReportLike(id, env, false);
         return methodNotAllowed("POST, DELETE");
       }
 

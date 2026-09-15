@@ -7,6 +7,31 @@ export interface Env {
   BUCKET: any;  // R2Bucket
 }
 
+// ------------------------------------------------------------
+// ランダムな表示名
+// ------------------------------------------------------------
+// ログイン機能がないため、投稿者名が未指定のときはここから組み合わせて作る。
+
+const NAME_ADJECTIVES = [
+  "ゆかいな", "しずかな", "きまぐれな", "ねむたい", "げんきな", "ひかえめな",
+  "まじめな", "のんきな", "はしゃぐ", "やさしい", "たそがれの", "はりきる",
+  "ほろ酔いの", "ひたむきな", "うたたねの", "そわそわした", "めざめた", "ひなたの",
+] as const;
+
+const NAME_ANIMALS = [
+  "カワウソ", "ペンギン", "アルパカ", "ハリネズミ", "シマエナガ", "カピバラ",
+  "レッサーパンダ", "ウォンバット", "マヌルネコ", "ラッコ", "アザラシ", "フクロウ",
+  "コツメカワウソ", "ヤマネ", "モモンガ", "ハクトウワシ", "サーバル", "クアッカ",
+] as const;
+
+/** 「ゆかいなカワウソ42」のような表示名を作る */
+export function randomName(): string {
+  const adjective = NAME_ADJECTIVES[Math.floor(Math.random() * NAME_ADJECTIVES.length)];
+  const animal = NAME_ANIMALS[Math.floor(Math.random() * NAME_ANIMALS.length)];
+  const number = Math.floor(Math.random() * 100);
+  return `${adjective}${animal}${number}`;
+}
+
 /** ジャンル。search/index.html の定義に合わせる */
 export const GENRES = [
   { key: "pilgrimage", label: "聖地巡礼" },
@@ -44,10 +69,9 @@ export interface PostRow {
   steps: string;      // JSON 配列
   materials: string;  // JSON 配列
   tags: string;       // JSON 配列
+  like_count: number;
   created_at: string;
   updated_at: string;
-  like_count?: number;
-  liked?: number;
   report_count?: number;
 }
 
@@ -68,7 +92,6 @@ export interface Post {
   materials: string[];
   tags: string[];
   likeCount: number;
-  liked: boolean;
   reportCount: number;
   createdAt: string;
   updatedAt: string;
@@ -81,9 +104,8 @@ export interface ReportRow {
   author_name: string;
   body: string;
   image_url: string | null;
+  like_count: number;
   created_at: string;
-  like_count?: number;
-  liked?: number;
 }
 
 /** API が返すレポート */
@@ -94,6 +116,5 @@ export interface Report {
   body: string;
   imageUrl: string | null;
   likeCount: number;
-  liked: boolean;
   createdAt: string;
 }
