@@ -26,85 +26,123 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  .app {
-    max-width: 480px;
-    margin: 0 auto;
-    background: var(--bg);
-    min-height: 100vh;
-    padding-bottom: 96px;
-    position: relative;
-  }
-
-  /* Header */
-  header {
+  /* Navbar */
+  .navbar {
     position: sticky;
     top: 0;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
+    z-index: 20;
     background: rgba(255,255,255,0.92);
     backdrop-filter: blur(6px);
     border-bottom: 1px solid var(--line);
   }
-  .back-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: var(--bg-soft);
+  .navbar-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 14px 24px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 18px;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+    text-decoration: none;
     flex-shrink: 0;
   }
-  .back-btn:active { background: var(--line); }
-  header h1 {
-    font-size: 15px;
-    font-weight: 600;
-    margin: 0;
+  .nav-links {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+  .nav-links a {
     color: var(--text-sub);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  /* Layout */
+  .layout {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-areas:
+      "main side"
+      "reports reports";
+    gap: 24px 32px;
+  }
+  .main-col { grid-area: main; min-width: 0; }
+  .side-col {
+    grid-area: side;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 88px;
+    align-self: start;
+  }
+  .report-section { grid-area: reports; }
+
+  @media (max-width: 860px) {
+    .layout {
+      grid-template-columns: 1fr;
+      grid-template-areas: "main" "side" "reports";
+    }
+    .side-col { position: static; }
   }
 
-  /* Hero image */
-  .hero-wrap {
-    position: relative;
+  .breadcrumb {
+    display: inline-block;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--text-sub);
+    text-decoration: none;
   }
-  .hero {
+  .breadcrumb:hover { color: var(--text); }
+
+  /* Gallery */
+  .gallery-main {
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 10;
+    border-radius: 20px;
+    overflow: hidden;
     background: linear-gradient(135deg, #FFF6C4, #FFEF6C);
-    overflow-x: auto;
-    display: flex;
-    scroll-snap-type: x mandatory;
   }
-  .hero img {
+  .gallery-main img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    flex-shrink: 0;
-    scroll-snap-align: start;
+    display: block;
   }
-  .hero-dots {
-    position: absolute;
-    bottom: 12px;
-    left: 50%;
-    transform: translateX(-50%);
+  .gallery-thumbs {
     display: flex;
-    gap: 6px;
+    gap: 10px;
+    margin-top: 10px;
   }
-  .hero-dots span {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.6);
+  .gallery-thumbs img {
+    width: 84px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    opacity: .7;
   }
-  .hero-dots span.active { background: #fff; }
-
-  .content { padding: 16px; }
+  .gallery-thumbs img.active,
+  .gallery-thumbs img:hover {
+    border-color: var(--accent-dark);
+    opacity: 1;
+  }
 
   .genre-badge {
     display: inline-flex;
@@ -116,12 +154,13 @@
     font-weight: 700;
     padding: 4px 10px;
     border-radius: 999px;
+    margin-top: 20px;
   }
 
-  h2.title {
-    font-size: 20px;
+  .title {
+    font-size: 26px;
     font-weight: 800;
-    margin: 10px 0 6px;
+    margin: 12px 0 8px;
     line-height: 1.4;
   }
 
@@ -131,33 +170,7 @@
     gap: 6px;
     color: var(--text-sub);
     font-size: 13px;
-    margin-bottom: 4px;
-  }
-
-  /* Stat chips: area / duration / budget */
-  .stat-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin: 16px 0;
-  }
-  .stat-card {
-    background: var(--bg-soft);
-    border-radius: 14px;
-    padding: 10px 8px;
-    text-align: center;
-  }
-  .stat-card .icon { font-size: 18px; }
-  .stat-card .label {
-    font-size: 10px;
-    color: var(--text-sub);
-    margin-top: 2px;
-  }
-  .stat-card .value {
-    font-size: 13px;
-    font-weight: 700;
-    margin-top: 2px;
-    word-break: break-word;
+    margin-bottom: 20px;
   }
 
   /* Generic card */
@@ -165,15 +178,15 @@
     background: var(--bg);
     border: 1px solid var(--line);
     border-radius: 16px;
-    padding: 16px;
-    margin-bottom: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
   }
   .card h3 {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 15px;
-    margin: 0 0 12px;
+    margin: 0 0 14px;
   }
   .card h3::before {
     content: "";
@@ -255,21 +268,47 @@
   .tip-card .icon { font-size: 18px; }
   .tip-card p { margin: 0; font-size: 13px; line-height: 1.7; color: var(--text); }
 
-  /* Like row */
-  .like-row {
+  /* Sidebar: stats */
+  .stat-card-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .stat-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 4px 4px 18px;
+    gap: 12px;
+  }
+  .stat-row .icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--bg-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .stat-row .label { font-size: 12px; color: var(--text-sub); }
+  .stat-row .value { font-size: 15px; font-weight: 700; margin-top: 2px; }
+
+  /* Sidebar: actions */
+  .action-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
   .like-btn {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
+    width: 100%;
     border: 1px solid var(--line);
     background: var(--bg);
     border-radius: 999px;
-    padding: 8px 18px;
+    padding: 10px 18px;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
@@ -282,20 +321,23 @@
     border-color: var(--accent-dark);
   }
   .share-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    width: 100%;
     border: 1px solid var(--line);
     background: var(--bg);
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 700;
     cursor: pointer;
-    font-size: 16px;
+    color: var(--text);
   }
+  .share-btn:hover { background: var(--bg-soft); }
 
   /* Report (行ってきましたレポート) */
   .report-item {
     display: flex;
     gap: 10px;
-    padding: 12px 0;
+    padding: 14px 0;
     border-bottom: 1px solid var(--line);
   }
   .report-item:last-child { border-bottom: none; }
@@ -365,7 +407,7 @@
     padding: 10px 12px;
     font-size: 14px;
     font-family: inherit;
-    resize: none;
+    resize: vertical;
     min-height: 64px;
   }
   .report-form textarea:focus { outline: none; border-color: var(--accent-dark); }
@@ -409,39 +451,31 @@
 </head>
 <body>
 
-<div class="app">
-  <header>
-    <button class="back-btn" aria-label="戻る">←</button>
-    <h1>投稿詳細</h1>
-  </header>
-
-  <div class="hero-wrap">
-    <div class="hero" id="hero"></div>
-    <div class="hero-dots" id="heroDots"></div>
+<header class="navbar">
+  <div class="navbar-inner">
+    <span class="logo">
+      オシピ！
+    </span>
+    <nav class="nav-links">
+      <a href="../index.html">トップ</a>
+      <a href="../search/index.html">予算で探す</a>
+      <a href="../post/index.html">投稿する</a>
+    </nav>
   </div>
+</header>
 
-  <div class="content">
-    <span class="genre-badge" id="genreBadge"></span>
-    <h2 class="title" id="postTitle"></h2>
-    <div class="meta-row">👤 <span id="postAuthor"></span> ・ <span id="postDate"></span></div>
+<main class="layout">
+  <div class="main-col">
+    <a class="breadcrumb" href="../search/index.html">← 一覧へ戻る</a>
 
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="icon">📍</div>
-        <div class="label">開催地</div>
-        <div class="value" id="statArea"></div>
-      </div>
-      <div class="stat-card">
-        <div class="icon">⏱️</div>
-        <div class="label">所要時間</div>
-        <div class="value" id="statTime"></div>
-      </div>
-      <div class="stat-card">
-        <div class="icon">💰</div>
-        <div class="label">予算</div>
-        <div class="value" id="statBudget"></div>
-      </div>
+    <div class="gallery-main">
+      <img id="heroMain" alt="">
     </div>
+    <div class="gallery-thumbs" id="heroThumbs"></div>
+
+    <span class="genre-badge" id="genreBadge"></span>
+    <h1 class="title" id="postTitle"></h1>
+    <div class="meta-row">👤 <span id="postAuthor"></span> ・ <span id="postDate"></span></div>
 
     <div class="card">
       <h3>概要</h3>
@@ -462,30 +496,56 @@
       <div class="icon">💡</div>
       <p id="tipText"></p>
     </div>
+  </div>
 
-    <div class="like-row">
+  <aside class="side-col">
+    <div class="card stat-card-group">
+      <div class="stat-row">
+        <span class="icon">📍</span>
+        <div>
+          <div class="label">開催地</div>
+          <div class="value" id="statArea"></div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="icon">⏱️</span>
+        <div>
+          <div class="label">所要時間</div>
+          <div class="value" id="statTime"></div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="icon">💰</span>
+        <div>
+          <div class="label">予算</div>
+          <div class="value" id="statBudget"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card action-card">
       <button class="like-btn" id="likeBtn">
         <span class="heart">🤍</span>
         <span id="likeCount"></span>
       </button>
-      <button class="share-btn" aria-label="共有">📤</button>
+      <button class="share-btn" id="shareBtn">📤 共有する</button>
     </div>
+  </aside>
 
-    <div class="card">
-      <h3>行ってきましたレポート <span class="section-count" id="reportCount"></span></h3>
-      <div id="reportList"></div>
+  <section class="report-section card">
+    <h3>行ってきましたレポート <span class="section-count" id="reportCount"></span></h3>
+    <div id="reportList"></div>
 
-      <div class="report-form">
-        <textarea id="reportInput" placeholder="実際にやってみた感想を書いてみよう！"></textarea>
-        <div class="report-form-actions">
-          <input type="file" id="reportImageInput" accept="image/*" hidden>
-          <button class="attach-btn" type="button" id="attachBtn">📷 画像を追加</button>
-          <button class="submit-btn" id="submitReport" disabled>投稿する</button>
-        </div>
+    <div class="report-form">
+      <textarea id="reportInput" placeholder="実際にやってみた感想を書いてみよう！"></textarea>
+      <div class="report-form-actions">
+        <input type="file" id="reportImageInput" accept="image/*" hidden>
+        <button class="attach-btn" type="button" id="attachBtn">📷 画像を追加</button>
+        <button class="submit-btn" id="submitReport" disabled>投稿する</button>
       </div>
     </div>
-  </div>
-</div>
+  </section>
+</main>
 
 <script>
   // ------- Mock data（後でAPIに差し替え予定） -------
@@ -549,20 +609,23 @@
   }
 
   // ------- Render -------
-  function renderHero() {
-    const hero = document.getElementById("hero");
-    hero.innerHTML = post.images.map(src => `<img src="${src}" alt="${escapeHtml(post.title)}">`).join("");
+  let activeImageIndex = 0;
+  function renderGallery() {
+    const mainImg = document.getElementById("heroMain");
+    mainImg.src = post.images[activeImageIndex];
+    mainImg.alt = escapeHtml(post.title);
 
-    const dotsEl = document.getElementById("heroDots");
-    if (post.images.length > 1) {
-      dotsEl.innerHTML = post.images.map((_, i) => `<span class="${i === 0 ? "active" : ""}"></span>`).join("");
-      hero.addEventListener("scroll", () => {
-        const index = Math.round(hero.scrollLeft / hero.clientWidth);
-        dotsEl.querySelectorAll("span").forEach((dot, i) => dot.classList.toggle("active", i === index));
+    const thumbs = document.getElementById("heroThumbs");
+    thumbs.innerHTML = post.images.map((src, i) =>
+      `<img src="${src}" class="${i === activeImageIndex ? "active" : ""}" data-index="${i}" alt="サムネイル${i + 1}">`
+    ).join("");
+
+    thumbs.querySelectorAll("img").forEach(img => {
+      img.addEventListener("click", () => {
+        activeImageIndex = Number(img.dataset.index);
+        renderGallery();
       });
-    } else {
-      dotsEl.innerHTML = "";
-    }
+    });
   }
 
   function renderPost() {
@@ -621,11 +684,7 @@
     updateLikeUI();
   });
 
-  document.querySelector(".back-btn").addEventListener("click", () => {
-    history.back();
-  });
-
-  document.querySelector(".share-btn").addEventListener("click", async () => {
+  document.getElementById("shareBtn").addEventListener("click", async () => {
     const shareData = { title: post.title, text: post.desc, url: location.href };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch (err) { /* ユーザーがキャンセル */ }
@@ -687,7 +746,7 @@
     renderReports();
   });
 
-  renderHero();
+  renderGallery();
   renderPost();
   renderReports();
 </script>
