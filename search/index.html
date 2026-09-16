@@ -565,6 +565,13 @@ input:focus { outline: none; border-color: var(--accent-dark); }
      ============================================================ */
   const API_BASE = "https://intern-b.tekitou.app";
 
+  /** 画像URLを絶対URLにする。/api/images/... のような相対パスは
+   *  本番オリジン以外から開くと解決先が変わってしまうため、常にAPI_BASEを基準にする */
+  function resolveUrl(url) {
+    if (!url) return url;
+    return /^https?:\/\//.test(url) ? url : `${API_BASE}${url}`;
+  }
+
   /* ============================================================
      GENRES（GET /api/genres から取得。取得できるまでは空のまま）
      ============================================================ */
@@ -792,7 +799,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     card.innerHTML = `
       <div class="card__media ${thumbImage ? "" : placeholderClass(index)}">
         ${thumbImage
-          ? `<img src="${escapeHtml(thumbImage)}" alt="${escapeHtml(post.title)}">`
+          ? `<img src="${escapeHtml(resolveUrl(thumbImage))}" alt="${escapeHtml(post.title)}">`
           : `<span class="card__media-letter" aria-hidden="true">${escapeHtml(post.genreLabel.slice(0, 1))}</span>`}
         <span class="card__price">${formatBudget(post.budget)}</span>
       </div>
