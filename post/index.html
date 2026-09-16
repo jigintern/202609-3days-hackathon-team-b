@@ -584,8 +584,8 @@ input:focus, select:focus, textarea:focus {
   // ------- 状態 -------
   const state = {
     genre: "",
-    // dataUrl はプレビュー用、file はアップロード用
-    images: [],  // { name, dataUrl, file }
+    // dataUrl はプレビュー用、file はアップロード用、uploadedUrl は送信後のキャッシュ
+    images: [],  // { name, dataUrl, file, uploadedUrl }
     steps: [""],
     submitting: false
   };
@@ -810,7 +810,7 @@ input:focus, select:focus, textarea:focus {
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = () => {
-        state.images.push({ name: file.name, dataUrl: reader.result, file });
+        state.images.push({ name: file.name, dataUrl: reader.result, file, uploadedUrl: null });
         remaining -= 1;
         if (remaining === 0) {
           renderImages();
@@ -856,6 +856,12 @@ input:focus, select:focus, textarea:focus {
     const urls = [];
 
     for (const [index, image] of state.images.entries()) {
+      // 保存に失敗して送り直すとき、アップロード済みの画像は R2 に二重に積まない
+      if (image.uploadedUrl) {
+        urls.push(image.uploadedUrl);
+        continue;
+      }
+
       setSubmitting(true, `画像を送信中… ${index + 1}/${state.images.length}`);
 
       const form = new FormData();
@@ -867,6 +873,7 @@ input:focus, select:focus, textarea:focus {
       }
 
       const { url } = await res.json();
+      image.uploadedUrl = url;
       urls.push(url);
     }
 
