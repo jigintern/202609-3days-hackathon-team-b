@@ -4,8 +4,9 @@
 // ルーティングはパスを "/" で分割して素直に分岐している。
 // ルーターライブラリを入れていないのは、依存なしで完結させるため。
 
-import type { Env } from "./types";
-import { CORS_HEADERS, error, json, preflight } from "./http";
+import type { Env, User } from "./types";
+import { CORS_HEADERS, error, json, preflight, withCors } from "./http";
+import * as auth from "./auth";
 import * as posts from "./posts";
 import * as reports from "./reports";
 import * as images from "./images";
@@ -14,14 +15,17 @@ import * as meta from "./meta";
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
-      return await route(request, env);
+      return withCors(request, await route(request, env));
     } catch (e) {
       // 実装上の不具合をそのまま外に出さない
       console.error("unhandled error", e);
-      return error("サーバー内部エラー", 500);
+      return withCors(request, error("サーバー内部エラー", 500));
     }
   },
 };
+
+/** ログインを必須にするメソッド */
+const WRITE_METHODS = ["POST", "PATCH", "PUT", "DELETE"];
 
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -37,7 +41,37 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   const [resource, id, sub] = segments;
 
+  // 書き込み系はログイン必須。ミドルウェア機構がないのでここで一括して見る。
+  // /api/auth/* は登録・ログインの入口なので対象外
+  let user: User | null = null;
+  if (WRITE_METHODS.includes(method) && resource !== "auth") {
+    user = await auth.currentUser(request, env);
+    if (!user) return error("ログインが必要です", 401);
+  }
+
   switch (resource) {
+    // ------------------------------------------------------------
+    case "auth":
+      // /api/auth/register, /api/auth/login, /api/auth/logout, /api/auth/me
+      if (sub) return error("Not Found", 404);
+
+      switch (id) {
+        case "register":
+          if (method !== "POST") return methodNotAllowed("POST");
+          return auth.register(request, env);
+        case "login":
+          if (method !== "POST") return methodNotAllowed("POST");
+          return auth.login(request, env);
+        case "logout":
+          if (method !== "POST") return methodNotAllowed("POST");
+          return auth.logout(request, env);
+        case "me":
+          if (method !== "GET") return methodNotAllowed("GET");
+          return auth.me(request, env);
+        default:
+          return error("Not Found", 404);
+      }
+
     // ------------------------------------------------------------
     case "health":
       if (method !== "GET") return methodNotAllowed("GET");
@@ -48,15 +82,15 @@ async function route(request: Request, env: Env): Promise<Response> {
       // /api/posts
       if (!id) {
         if (method === "GET") return posts.listPosts(request, env);
-        if (method === "POST") return posts.createPost(request, env);
+        if (method === "POST") return posts.createPost(request, env, user!);
         return methodNotAllowed("GET, POST");
       }
 
       // /api/posts/:id
       if (!sub) {
         if (method === "GET") return posts.getPost(id, env);
-        if (method === "PATCH" || method === "PUT") return posts.updatePost(id, request, env);
-        if (method === "DELETE") return posts.deletePost(id, env);
+        if (method === "PATCH" || method === "PUT") return posts.updatePost(id, request, env, user!);
+        if (method === "DELETE") return posts.deletePost(id, env, user!);
         return methodNotAllowed("GET, PATCH, DELETE");
       }
 
@@ -70,7 +104,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       // /api/posts/:id/reports
       if (sub === "reports") {
         if (method === "GET") return reports.listReports(id, env);
-        if (method === "POST") return reports.createReport(id, request, env);
+        if (method === "POST") return reports.createReport(id, request, env, user!);
         return methodNotAllowed("GET, POST");
       }
 
@@ -82,7 +116,7 @@ async function route(request: Request, env: Env): Promise<Response> {
 
       // /api/reports/:id
       if (!sub) {
-        if (method === "DELETE") return reports.deleteReport(id, env);
+        if (method === "DELETE") return reports.deleteReport(id, env, user!);
         return methodNotAllowed("DELETE");
       }
 

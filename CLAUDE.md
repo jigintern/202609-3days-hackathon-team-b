@@ -8,18 +8,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-依存パッケージは無い（`package.json` が存在しない）ので `npx wrangler` がそのまま使える。
+依存パッケージは無い（`package.json` は npm scripts を置くためだけのもので `dependencies` が無い）ので `npx wrangler` がそのまま使える。
 
 ```bash
 # 初回のみ: D1スキーマをローカルに適用
-npx wrangler d1 migrations apply hackathon-team-b --local
+npm run migrate
 
 # ローカル起動（Workers + D1 + R2 をローカルエミュレート）
-npx wrangler dev
+npm run dev
 
 # 型を使いたくなったら生成する（現状は生成していない。api/types.ts の Env は any 型で代用）
 npx wrangler types
 ```
+
+**`npx wrangler dev` を直接叩かないこと。** `assets.directory` がリポジトリルートなので、wrangler が `.wrangler/tmp` にバンドルを書くたびにアセット変更として検知され、リロードが無限ループする。`npm run dev` は `scripts/dev-config.mjs` で設定ファイルを `~/.cache/wrangler-dev-team-b/` に書き出して `-c` で渡し、`.wrangler` をリポジトリ外に追い出すことでこれを回避している（`.assetsignore` は配信対象から外すだけで、ファイル監視には効かない）。
 
 ビルド・lint・テストの仕組みは無い（CIも `wrangler-action` でのデプロイのみ）。
 

@@ -19,7 +19,8 @@ function resolveUrl(url) {
 }
 
 async function sendLike(url, liked) {
-  const res = await fetch(url, { method: liked ? "POST" : "DELETE" });
+  // いいねはログイン必須になったので、セッションCookieを載せる
+  const res = await fetch(url, { method: liked ? "POST" : "DELETE", credentials: "include" });
   if (!res.ok) throw new Error(`failed to update like: ${res.status}`);
   const { likeCount } = await res.json();
   return likeCount;

@@ -113,6 +113,12 @@ button, input { font-family: inherit; }
 .nav-link:focus-visible {
   color: var(--ink);
 }
+.nav-user {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
 
 /* ============================================================
    LAYOUT
@@ -197,6 +203,80 @@ input.is-invalid:focus {
   transition: background 0.15s ease;
 }
 .btn-submit:hover { background: var(--accent-dark); }
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ============================================================
+   TAB（ログイン / 新規登録の切り替え）
+   ============================================================ */
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.tab {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.6em 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: rgba(3, 3, 3, 0.08);
+}
+
+/* ============================================================
+   ログイン状態
+   ============================================================ */
+.session-box {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.session-box__name {
+  font-size: 0.9rem;
+  margin: 0;
+}
+.session-box__name strong { font-weight: 700; }
+.session-box__id {
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+.btn-logout {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.5em 1.2em;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.btn-logout:hover { background: var(--bg); }
+
+.form-status {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin: 12px 0 0;
+  min-height: 1.3em;
+  text-align: center;
+}
+.is-hidden { display: none !important; }
 </style>
 </head>
 <body>
@@ -205,6 +285,7 @@ input.is-invalid:focus {
   <div class="container">
     <a class="site-logo" href="../index.html">オシピ！</a>
     <nav class="nav-links">
+      <span class="nav-user" id="navUser" hidden></span>
       <a class="nav-link" href="../search/index.html">予算で探す</a>
       <a class="btn-primary" href="../post/index.html">投稿する</a>
     </nav>
@@ -216,11 +297,22 @@ input.is-invalid:focus {
     <h1 class="page-title">ログイン</h1>
     <p class="page-lead">IDとパスワードでログインしてください。</p>
 
+    <!-- ログイン済みのときだけ表示する。ログイン中でも別アカウントでログインし直せる -->
+    <section class="session-box is-hidden" id="sessionBox">
+      <p class="session-box__name"><strong id="sessionName"></strong><span class="session-box__id" id="sessionLoginId"></span> としてログイン中</p>
+      <button type="button" class="btn-logout" id="logoutBtn">ログアウト</button>
+    </section>
+
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab" id="tabLogin" role="tab" aria-selected="true">ログイン</button>
+      <button type="button" class="tab" id="tabRegister" role="tab" aria-selected="false">新規登録</button>
+    </div>
+
     <section class="field">
       <div class="field__head">
         <span class="field__label">ID</span>
       </div>
-      <input type="text" id="loginId" autocomplete="username" aria-describedby="loginIdError" maxlength="16">
+      <input type="text" id="loginId" autocomplete="username" aria-describedby="loginIdError" maxlength="32">
       <p class="field__error" id="loginIdError" role="alert"></p>
     </section>
 
@@ -228,43 +320,106 @@ input.is-invalid:focus {
       <div class="field__head">
         <span class="field__label">パスワード</span>
       </div>
-      <input type="password" id="loginPassword" autocomplete="new-password" aria-describedby="loginPasswordError" maxlength="256">
+      <input type="password" id="loginPassword" autocomplete="current-password" aria-describedby="loginPasswordError" maxlength="72">
       <p class="field__error" id="loginPasswordError" role="alert"></p>
     </section>
 
-    <section class="field">
+    <!-- 確認用パスワードは新規登録のときだけ使う -->
+    <section class="field is-hidden" id="passwordConfirmField">
       <div class="field__head">
         <span class="field__label">パスワード（確認）</span>
       </div>
-      <input type="password" id="loginPasswordConfirm" autocomplete="new-password" aria-describedby="loginPasswordConfirmError" maxlength="256">
+      <input type="password" id="loginPasswordConfirm" autocomplete="new-password" aria-describedby="loginPasswordConfirmError" maxlength="72">
       <p class="field__error" id="loginPasswordConfirmError" role="alert"></p>
     </section>
 
     <button type="submit" class="btn-submit" id="loginSubmitBtn">ログイン</button>
+    <p class="form-status" id="formStatus" role="alert"></p>
   </form>
 </main>
 
 <script>
-  const CURRENT_USER_KEY = "oshipi:currentUser";
+  // 認証は HttpOnly Cookie のセッション。他画面と同じく本番 API を向ける。
+  // （ローカルから本番を叩けるよう、API 側で localhost オリジンの credentials を許可している）
+  const API_BASE = "https://intern-b.tekitou.app";
+  const AUTH_BASE = `${API_BASE}/api/auth`;
 
-  function getCurrentUser() {
+  // API のバリデーションに合わせる（api/auth.ts）
+  const LOGIN_ID_PATTERN = /^[a-z0-9_-]{3,32}$/;
+  const PASSWORD_MIN = 8;
+  const PASSWORD_MAX = 72;
+
+  const form = document.getElementById("loginForm");
+  const tabLogin = document.getElementById("tabLogin");
+  const tabRegister = document.getElementById("tabRegister");
+  const sessionBox = document.getElementById("sessionBox");
+  const sessionName = document.getElementById("sessionName");
+  const sessionLoginId = document.getElementById("sessionLoginId");
+  const navUser = document.getElementById("navUser");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const passwordConfirmField = document.getElementById("passwordConfirmField");
+  const submitBtn = document.getElementById("loginSubmitBtn");
+  const formStatus = document.getElementById("formStatus");
+  const leadEl = document.querySelector(".page-lead");
+
+  const idInput = document.getElementById("loginId");
+  const pwInput = document.getElementById("loginPassword");
+  const pwConfirmInput = document.getElementById("loginPasswordConfirm");
+  const idError = document.getElementById("loginIdError");
+  const pwError = document.getElementById("loginPasswordError");
+  const pwConfirmError = document.getElementById("loginPasswordConfirmError");
+
+  // "login" | "register"
+  let mode = "login";
+  let submitting = false;
+
+  /* ============================================================
+     ログイン状態
+     ============================================================ */
+  async function fetchCurrentUser() {
     try {
-      return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) ?? "null");
+      const res = await fetch(`${AUTH_BASE}/me`, { credentials: "include" });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.user ?? null;
     } catch {
       return null;
     }
   }
-  function saveCurrentUser(user) {
-    try {
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-    } catch { /* ストレージ利用不可時は何もしない */ }
+
+  function renderSession(user) {
+    // ログイン済みでもフォームは残す（別アカウントでログインし直せる）
+    sessionBox.classList.toggle("is-hidden", !user);
+    navUser.hidden = !user;
+    if (!user) return;
+    navUser.textContent = user.displayName;
+    sessionName.textContent = user.displayName || user.loginId;
+    // 表示名はランダム割り当てのことがあるので、ログインIDも併記する
+    sessionLoginId.textContent = user.displayName ? `（ID: ${user.loginId}）` : "";
   }
 
-  // 既にログイン済みならフォームを出さずトップへ
-  if (getCurrentUser()) {
-    location.href = "../index.html";
+  /* ============================================================
+     タブ
+     ============================================================ */
+  function setMode(next) {
+    mode = next;
+    tabLogin.setAttribute("aria-selected", String(mode === "login"));
+    tabRegister.setAttribute("aria-selected", String(mode === "register"));
+    passwordConfirmField.classList.toggle("is-hidden", mode !== "register");
+    pwInput.setAttribute("autocomplete", mode === "register" ? "new-password" : "current-password");
+    submitBtn.textContent = mode === "register" ? "登録してはじめる" : "ログイン";
+    leadEl.textContent = mode === "register"
+      ? "IDとパスワードを決めてアカウントを作成します。"
+      : "IDとパスワードでログインしてください。";
+    clearErrors();
   }
 
+  tabLogin.addEventListener("click", () => setMode("login"));
+  tabRegister.addEventListener("click", () => setMode("register"));
+
+  /* ============================================================
+     エラー表示
+     ============================================================ */
   function setFieldError(input, errorEl, message) {
     input.classList.toggle("is-invalid", Boolean(message));
     if (message) input.setAttribute("aria-invalid", "true");
@@ -272,50 +427,101 @@ input.is-invalid:focus {
     errorEl.textContent = message ?? "";
   }
 
-  document.getElementById("loginForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-
-    const idInput = document.getElementById("loginId");
-    const pwInput = document.getElementById("loginPassword");
-    const pwConfirmInput = document.getElementById("loginPasswordConfirm");
-    const idError = document.getElementById("loginIdError");
-    const pwError = document.getElementById("loginPasswordError");
-    const pwConfirmError = document.getElementById("loginPasswordConfirmError");
-
-    const id = idInput.value.trim();
-    const password = pwInput.value;
-    const passwordConfirm = pwConfirmInput.value;
-
+  function clearErrors() {
     setFieldError(idInput, idError, null);
     setFieldError(pwInput, pwError, null);
     setFieldError(pwConfirmInput, pwConfirmError, null);
+    formStatus.textContent = "";
+  }
 
+  function validate() {
+    clearErrors();
     let valid = true;
 
-    if (id.length < 4 || id.length > 16) {
-      setFieldError(idInput, idError, "IDは4〜16文字で入力してください");
+    const id = idInput.value.trim().toLowerCase();
+    if (!LOGIN_ID_PATTERN.test(id)) {
+      setFieldError(idInput, idError, "IDは半角英数字と _ - を使った3〜32文字で入力してください");
       valid = false;
     }
 
-    if (password.length < 4 || password.length > 256) {
-      setFieldError(pwInput, pwError, "パスワードは4〜256文字で入力してください");
+    const password = pwInput.value;
+    if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) {
+      setFieldError(pwInput, pwError, `パスワードは${PASSWORD_MIN}〜${PASSWORD_MAX}文字で入力してください`);
       valid = false;
     }
 
-    if (passwordConfirm.length < 4 || passwordConfirm.length > 256) {
-      setFieldError(pwConfirmInput, pwConfirmError, "確認用パスワードは4〜256文字で入力してください");
-      valid = false;
-    } else if (password !== passwordConfirm) {
+    if (mode === "register" && pwConfirmInput.value !== password) {
       setFieldError(pwConfirmInput, pwConfirmError, "パスワードが一致しません");
       valid = false;
     }
 
-    if (!valid) return;
+    return valid;
+  }
 
-    // バックエンドに認証機能が無いため、送信動作はモック
-    saveCurrentUser({ id, loggedInAt: new Date().toISOString() });
-    location.href = "../index.html";
+  function setSubmitting(on, label) {
+    submitting = on;
+    submitBtn.disabled = on;
+    submitBtn.textContent = on ? label : (mode === "register" ? "登録してはじめる" : "ログイン");
+  }
+
+  /* ============================================================
+     送信
+     ============================================================ */
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    if (!validate()) return;
+
+    const payload = {
+      loginId: idInput.value.trim().toLowerCase(),
+      password: pwInput.value,
+    };
+
+    setSubmitting(true, mode === "register" ? "登録中…" : "ログイン中…");
+    try {
+      const res = await fetch(`${AUTH_BASE}/${mode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        const message = data?.error ?? "通信に失敗しました。時間をおいて試してください";
+        // ID の重複は ID 欄に、それ以外はフォーム全体のメッセージに出す
+        if (res.status === 409) setFieldError(idInput, idError, message);
+        else formStatus.textContent = message;
+        return;
+      }
+
+      // 登録・ログインどちらもセッション Cookie が返るのでそのままトップへ
+      location.href = "../index.html";
+    } catch {
+      formStatus.textContent = "通信に失敗しました。時間をおいて試してください";
+    } finally {
+      if (submitting) setSubmitting(false);
+    }
   });
+
+  /* ============================================================
+     ログアウト
+     ============================================================ */
+  logoutBtn.addEventListener("click", async () => {
+    logoutBtn.disabled = true;
+    try {
+      await fetch(`${AUTH_BASE}/logout`, { method: "POST", credentials: "include" });
+      renderSession(null);
+      formStatus.textContent = "";
+    } catch {
+      formStatus.textContent = "ログアウトに失敗しました。時間をおいて試してください";
+    } finally {
+      logoutBtn.disabled = false;
+    }
+  });
+
+  setMode("login");
+  fetchCurrentUser().then(renderSession);
 </script>
 
 </body>

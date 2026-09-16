@@ -1,0 +1,8 @@
+{
+  "name": "hackathon-team-b",
+  "private": true,
+  "scripts": {
+    "dev": "npx wrangler dev --ip 0.0.0.0 -c \"$(node scripts/dev-config.mjs)\"",
+    "migrate": "npx wrangler d1 migrations apply hackathon-team-b --local -c \"$(node scripts/dev-config.mjs)\""
+  }
+}

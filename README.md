@@ -21,9 +21,15 @@ cd 202609-3days-hackathon-team-b
 ローカルで動かす場合（Cloudflare Workers + D1 + R2 がローカルエミュレートされます）。
 
 ```bash
-npx wrangler d1 migrations apply hackathon-team-b --local  # 初回のみ
-npx wrangler dev
+npm run migrate  # 初回・マイグレーション追加時
+npm run dev      # ポートを変えたいときは npm run dev -- --port 3000
 ```
+
+`npx wrangler dev` を直接叩くと、**リロードが無限ループします**。`wrangler.jsonc` の `assets.directory` がリポジトリルート（`./`）なので、wrangler 自身がバンドルを書き出す `.wrangler/tmp` をアセットの変更として検知してしまうためです（`.assetsignore` は配信対象から外すだけで、ファイル監視には効きません）。
+
+`.wrangler` は「設定ファイルのあるディレクトリ」に作られるので、`npm run dev` は `scripts/dev-config.mjs` で設定ファイルだけを `~/.cache/wrangler-dev-team-b/` に書き出し、それを `-c` で渡しています。これで `.wrangler` がリポジトリの外に出るためループしません。ホットリロードは通常どおり効きます。
+
+ローカルの D1 / R2 のデータも `~/.cache/wrangler-dev-team-b/.wrangler/state` に入ります。作り直したいときはこのディレクトリを消して `npm run migrate` をやり直してください。
 
 ## ディレクトリ構成
 
@@ -60,11 +66,30 @@ npx wrangler dev
 
 ## 認証について
 
-**認証はありません。** ヘッダーもトークンも不要で、どのエンドポイントもそのまま呼べます。
+**読み取り（GET）はそのまま呼べます。書き込み（POST / PATCH / PUT / DELETE）はログインが必要です。**
 
-投稿者名（`authorName`）を省略すると、サーバー側で「ゆかいなカワウソ42」のようなランダムな名前が割り当てられます。名前を入力させたい場合だけ `authorName` を送ってください。
+ログインは ID とパスワードだけで、セッションは HttpOnly Cookie で保持します。同じドメインから呼ぶ限りフロント側で Cookie を触る必要はなく、`fetch` がそのまま送ってくれます（別ドメインから呼ぶ場合のみ `credentials: "include"` が要ります）。
 
-いいねは誰が押したかを記録しない単純なカウンタです。そのため**同じ人が何度も押せば増えます**。二重に押させない制御が必要なら、フロント側で `localStorage` に記録してボタンを無効化してください。
+```js
+// 登録（そのままログイン状態になる）
+await fetch("/api/auth/register", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ loginId: "myname", password: "password123", displayName: "推し活太郎" }),
+});
+
+// ログイン中かどうかの確認（未ログインなら 401）
+const res = await fetch("/api/auth/me");
+const { user } = res.ok ? await res.json() : { user: null };
+```
+
+未ログインで書き込み系を叩くと `401 { "error": "ログインが必要です" }` が返ります。ページ側では 401 をログイン画面への誘導に使ってください。
+
+投稿者名（`authorName`）はログイン中のユーザーの表示名が自動で入ります。リクエストに `authorName` を入れても無視されます。
+
+投稿・レポートの編集と削除は**作成した本人だけ**が行えます。他人のものを操作しようとすると `403` です（初期データの投稿は所有者がいないので誰も編集・削除できません）。
+
+いいねもログインが必要ですが、誰が押したかは記録しない単純なカウンタです。そのため**同じ人が何度も押せば増えます**。二重に押させない制御が必要なら、フロント側で `localStorage` に記録してボタンを無効化してください。
 
 ```js
 // 押した投稿を覚えておく例
@@ -83,15 +108,15 @@ async function toggleLike(postId) {
 
 ## CORS
 
-`Access-Control-Allow-Origin: *` を全エンドポイントに付けているので、**別ドメインのページからそのまま呼べます**。プリフライト（`OPTIONS`）にも応答し、404 や 422 などのエラーレスポンスにも付くのでエラー内容をブラウザ側で読めます。
+`Access-Control-Allow-Origin: *` を全エンドポイントに付けているので、**別ドメインのページからも読み取りはそのまま呼べます**。プリフライト（`OPTIONS`）にも応答し、404 や 422 などのエラーレスポンスにも付くのでエラー内容をブラウザ側で読めます。
 
 ```js
-// 別ドメインのページから
+// 別ドメインのページから（読み取りのみ）
 const res = await fetch("https://intern-b.tekitou.app/api/posts");
 const { posts } = await res.json();
 ```
 
-認証も Cookie も使っていないため `*` で済んでいます。Cookie を使う構成に変える場合は `*` が使えなくなり、オリジンを個別に指定して `Access-Control-Allow-Credentials` を返す必要があります。
+セッション Cookie は `*` では送れないため、自分自身のオリジン（`intern-b.tekitou.app`）と開発用の `localhost` / `127.0.0.1` からのリクエストにだけ、そのオリジンを返して `Access-Control-Allow-Credentials: true` を付けています。つまり**ログインが要る操作は、このサイト自身のページか `wrangler dev` からのみ**行えます。
 
 ## クエリの URL エンコード
 
@@ -111,6 +136,10 @@ fetch(`/api/posts?${params}`);
 | メソッド | パス                        | 用途                       | 使うページ           |
 | -------- | --------------------------- | -------------------------- | -------------------- |
 | GET      | `/api/health`               | 死活確認                   | —                    |
+| POST     | `/api/auth/register`        | ユーザー登録（即ログイン） | ログイン / 登録      |
+| POST     | `/api/auth/login`           | ログイン                   | ログイン             |
+| POST     | `/api/auth/logout`          | ログアウト                 | 全ページ             |
+| GET      | `/api/auth/me`              | ログイン中のユーザー       | 全ページ             |
 | GET      | `/api/posts`                | 投稿一覧・検索・絞り込み   | トップ / 検索        |
 | POST     | `/api/posts`                | 投稿の作成                 | 投稿フォーム         |
 | GET      | `/api/posts/:id`            | 投稿の詳細                 | 詳細                 |
@@ -129,6 +158,34 @@ fetch(`/api/posts?${params}`);
 | GET      | `/api/genres`               | ジャンル一覧               | 全ページ             |
 | GET      | `/api/prefectures`          | 都道府県一覧               | 投稿フォーム / 検索  |
 | GET      | `/api/tags`                 | タグ一覧（件数つき）       | 検索                 |
+
+## ログイン
+
+### `POST /api/auth/register`
+
+| フィールド    | 型     | 必須 | 制約                                          |
+| ------------- | ------ | ---- | --------------------------------------------- |
+| `loginId`     | string | ✻    | 半角英数と `_` `-` で 3〜32 文字。大文字小文字は区別しない |
+| `password`    | string | ✻    | 8〜72 文字                                    |
+| `displayName` | string |      | 20 文字まで。省略時はランダムな名前を自動生成 |
+
+成功すると `201` とセッション Cookie を返し、そのままログイン状態になります。`loginId` が使用済みなら `409`、入力が不正なら `422`。
+
+```json
+{ "user": { "id": "...", "loginId": "myname", "displayName": "推し活太郎", "createdAt": "..." } }
+```
+
+### `POST /api/auth/login`
+
+`loginId` と `password` を送ります。成功すると `200` と Cookie、失敗は `401` です。ID が存在しない場合もパスワードが違う場合も同じメッセージを返します。
+
+### `POST /api/auth/logout`
+
+セッションを破棄して `204` を返します。
+
+### `GET /api/auth/me`
+
+ログイン中なら `200` で `{ "user": {...} }`、未ログインなら `401` を返します。ページ読み込み時にログイン状態を判定するのに使ってください。
 
 ## 投稿
 
@@ -203,7 +260,6 @@ curl "https://intern-b.tekitou.app/api/posts?genre=craft&budgetMax=1000&sort=pop
 | `prefecture`  | string   |      | 都道府県名。空文字可                             |
 | `durationMin` | number   |      | 0〜10080（分）                                   |
 | `budget`      | number   |      | 0〜1000000（円）                                 |
-| `authorName`  | string   |      | 20 文字まで。省略時はランダムな名前を自動生成    |
 | `steps`       | string[] |      | 30 件まで、各 120 文字まで                       |
 | `materials`   | string[] |      | 30 件まで、各 120 文字まで                       |
 | `tags`        | string[] |      | 10 件まで、各 20 文字まで                        |
@@ -223,15 +279,15 @@ curl -X POST https://intern-b.tekitou.app/api/posts \
   }'
 ```
 
-成功すると `201` と作成された投稿を返します。バリデーションエラーは `422`。
+成功すると `201` と作成された投稿を返します。バリデーションエラーは `422`、未ログインは `401`。`authorName` はログイン中のユーザーの表示名が入ります。
 
 ### `PATCH /api/posts/:id`
 
-`POST` と同じフィールドを受け取り、**渡されたフィールドだけ**を更新します。`PUT` も同じ動作です。
+`POST` と同じフィールドを受け取り、**渡されたフィールドだけ**を更新します。`PUT` も同じ動作です。投稿した本人以外は `403`。
 
 ### `DELETE /api/posts/:id`
 
-投稿とそれに紐づくレポート・いいねをまとめて削除し、`204` を返します。
+投稿とそれに紐づくレポート・いいねをまとめて削除し、`204` を返します。投稿した本人以外は `403`。
 
 ## いいね
 
@@ -274,11 +330,12 @@ curl -X POST https://intern-b.tekitou.app/api/posts/<id>/like
 | ------------ | ------ | ---- | -------------------------- |
 | `body`       | string | ✻    | 1〜500 文字                |
 | `imageUrl`   | string |      | `POST /api/images` の戻り値 |
-| `authorName` | string |      | 20 文字まで。省略時はランダムな名前を自動生成 |
+
+`authorName` はログイン中のユーザーの表示名が入ります。
 
 ### `DELETE /api/reports/:id`
 
-`204` を返します。
+`204` を返します。レポートを書いた本人以外は `403`。
 
 ## 画像
 
