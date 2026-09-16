@@ -530,11 +530,6 @@
     </div>
 
     <div class="card">
-      <h3>材料 <span class="section-count" id="materialCount"></span></h3>
-      <ul class="material-list" id="materialList"></ul>
-    </div>
-
-    <div class="card">
       <h3>手順</h3>
       <ol class="step-list" id="stepList"></ol>
     </div>
@@ -686,11 +681,6 @@
     document.getElementById("statTime").textContent = formatDuration(post.durationMin);
     document.getElementById("statBudget").textContent = formatBudget(post.budget);
     document.getElementById("postDesc").textContent = post.body;
-
-    const materials = post.materials || [];
-    document.getElementById("materialCount").textContent = `(${materials.length})`;
-    document.getElementById("materialList").innerHTML = materials
-      .map(m => `<li><span class="dot"></span>${escapeHtml(m)}</li>`).join("");
 
     const steps = post.steps || [];
     document.getElementById("stepList").innerHTML = steps
