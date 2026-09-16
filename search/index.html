@@ -186,6 +186,12 @@ fieldset { border: none; padding: 0; margin: 0; }
   padding-top: 18px;
 }
 
+.field-error {
+  color: var(--danger);
+  font-size: 0.8rem;
+  margin: 8px 0 0;
+}
+
 input[type="text"],
 input[type="number"] {
   width: 100%;
@@ -340,6 +346,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
    CARD（トップページと共通のコンポーネント）
    ============================================================ */
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -350,8 +357,13 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   overflow: visible;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.card:hover, .card:focus-visible {
+.card:hover, .card:focus-within {
   transform: translateY(-4px);
+}
+.card__link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 
 .card__media {
@@ -436,6 +448,8 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   gap: 8px;
 }
 .card__like-btn {
+  position: relative;
+  z-index: 2;
   border: none;
   background: none;
   padding: 0;
@@ -516,6 +530,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
             <input type="number" id="budget-max" name="budgetMax" min="0" step="100" placeholder="上限なし" inputmode="numeric">
           </div>
         </div>
+        <p class="field-error" id="budget-error" role="alert" hidden>最低予算は最高予算以下にしてください</p>
       </fieldset>
 
       <!-- ジャンル一覧は GET /api/genres から取得。複数選択でOR絞り込み（APIのgenreパラメータに準拠） -->
@@ -733,6 +748,27 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     renderGenreChips();
   }
 
+  /* ============================================================
+     予算範囲のバリデーション（最低 > 最高だと必ず0件になるため、
+     検索を投げる前にフロント側で気づけるようにする）
+     ============================================================ */
+  function updateBudgetRangeUI() {
+    const budgetMinInput = document.getElementById("budget-min");
+    const budgetMaxInput = document.getElementById("budget-max");
+    const errorEl = document.getElementById("budget-error");
+    const { budgetMin, budgetMax } = filterState;
+
+    const isValid = !(budgetMin !== null && budgetMax !== null && budgetMin > budgetMax);
+    errorEl.hidden = isValid;
+
+    // 逆転入力をしにくくする（スピンボタン操作時のガード。直接入力までは防げない）
+    if (budgetMax !== null) budgetMinInput.max = String(budgetMax);
+    else budgetMinInput.removeAttribute("max");
+    budgetMaxInput.min = budgetMin !== null ? String(budgetMin) : "0";
+
+    return isValid;
+  }
+
   function buildSearchParams() {
     const params = new URLSearchParams();
     if (filterState.budgetMin !== null) params.set("budgetMin", String(filterState.budgetMin));
@@ -747,12 +783,22 @@ input:focus { outline: none; border-color: var(--accent-dark); }
      FILTER / FETCH
      ============================================================ */
   async function applyFilters() {
-    const seq = ++requestSeq;
     const grid = document.getElementById("results-grid");
     const emptyState = document.getElementById("empty-state");
     const fetchError = document.getElementById("fetch-error");
     const countEl = document.getElementById("results-count");
 
+    if (!updateBudgetRangeUI()) {
+      // 予算の範囲が逆転していて必ず0件になるので、検索自体を送らない
+      grid.innerHTML = "";
+      grid.hidden = true;
+      emptyState.hidden = true;
+      fetchError.hidden = true;
+      countEl.textContent = "";
+      return;
+    }
+
+    const seq = ++requestSeq;
     emptyState.hidden = true;
     fetchError.hidden = true;
     countEl.textContent = "検索中…";
@@ -778,13 +824,19 @@ input:focus { outline: none; border-color: var(--accent-dark); }
      RENDER
      ============================================================ */
   function renderCard(post, index) {
-    const card = document.createElement("a");
+    // カード内にいいねボタン(<button>)を置くため、外枠は<a>ではなく<article>にし、
+    // 遷移用のリンクは全面を覆う透明な<a>として別に重ねる(<a>はインタラクティブ要素を子孫に持てないため)
+    const card = document.createElement("article");
     card.className = "card";
-    card.href = `../detail/index.html?id=${encodeURIComponent(post.id)}`;
-    card.setAttribute(
+
+    const cardLink = document.createElement("a");
+    cardLink.className = "card__link";
+    cardLink.href = `../detail/index.html?id=${encodeURIComponent(post.id)}`;
+    cardLink.setAttribute(
       "aria-label",
       `${post.title}、${post.genreLabel}、予算${formatBudget(post.budget)}の詳細を見る`
     );
+    card.append(cardLink);
 
     const durationText = formatDuration(post.durationMin);
     const metaParts = [
@@ -796,7 +848,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     const thumbImage = post.images && post.images[0];
     const liked = likedPostIds.has(post.id);
 
-    card.innerHTML = `
+    card.insertAdjacentHTML("beforeend", `
       <div class="card__media ${thumbImage ? "" : placeholderClass(index)}">
         ${thumbImage
           ? `<img src="${escapeHtml(resolveUrl(thumbImage))}" alt="${escapeHtml(post.title)}">`
@@ -815,7 +867,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
           </button>
         </div>
       </div>
-    `;
+    `);
     return card;
   }
 
