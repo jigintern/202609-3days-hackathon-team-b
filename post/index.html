@@ -589,6 +589,16 @@ input:focus, select:focus, textarea:focus {
   const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
   const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+  // ------- ログイン状態（認証がないためlocalStorageのモック） -------
+  const CURRENT_USER_KEY = "oshipi:currentUser";
+  function isLoggedIn() {
+    try {
+      return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) ?? "null") !== null;
+    } catch {
+      return false;
+    }
+  }
+
   // ------- 状態 -------
   // ?id=xxx が付いていれば既存投稿の編集、なければ新規投稿
   const editingPostId = new URLSearchParams(location.search).get("id");
@@ -904,6 +914,13 @@ input:focus, select:focus, textarea:focus {
     if (state.submitting || submitBtn.disabled) return;
 
     const isEditing = state.mode === "editing";
+    
+    if (!isLoggedIn()) {
+      submitStatus.textContent = "ログインが必要です";
+      submitStatus.style.color = "var(--danger)";
+      return;
+    }
+
     let post;
     try {
       const images = await uploadImages();

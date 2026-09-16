@@ -429,6 +429,14 @@
   }
   .report-like-btn.liked { color: var(--danger); font-weight: 700; }
 
+  .login-required-msg {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 12px;
+    color: var(--danger);
+    white-space: nowrap;
+  }
+
   .report-form {
     margin-top: 14px;
     display: flex;
@@ -613,6 +621,25 @@
   const likedPosts = loadLikedSet(LIKED_POSTS_KEY);
   const likedReports = loadLikedSet(LIKED_REPORTS_KEY);
 
+  const CURRENT_USER_KEY = "oshipi:currentUser";
+  function isLoggedIn() {
+    try {
+      return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) ?? "null") !== null;
+    } catch {
+      return false;
+    }
+  }
+  function showLoginRequiredMessage(anchorEl) {
+    const existing = anchorEl.parentElement.querySelector(".login-required-msg");
+    if (existing) existing.remove();
+    const msg = document.createElement("span");
+    msg.className = "login-required-msg";
+    msg.setAttribute("role", "alert");
+    msg.textContent = "ログインが必要です";
+    anchorEl.insertAdjacentElement("afterend", msg);
+    setTimeout(() => msg.remove(), 2500);
+  }
+
   // ------- Helpers -------
   function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, ch => ({
@@ -735,6 +762,10 @@
   // ------- Events -------
   document.getElementById("likeBtn").addEventListener("click", async () => {
     if (!post) return;
+    if (!isLoggedIn()) {
+      showLoginRequiredMessage(document.getElementById("likeBtn"));
+      return;
+    }
     const isLiked = likedPosts.has(post.id);
     try {
       const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(post.id)}/like`, {
@@ -778,6 +809,10 @@
   document.getElementById("reportList").addEventListener("click", async (e) => {
     const btn = e.target.closest(".report-like-btn");
     if (!btn) return;
+    if (!isLoggedIn()) {
+      showLoginRequiredMessage(btn);
+      return;
+    }
     const id = btn.dataset.id;
     const isLiked = likedReports.has(id);
     try {
@@ -817,6 +852,10 @@
   submitBtn.addEventListener("click", async () => {
     const text = reportInput.value.trim();
     if (!text || !postId) return;
+    if (!isLoggedIn()) {
+      showLoginRequiredMessage(submitBtn);
+      return;
+    }
 
     submitBtn.disabled = true;
     submitBtn.textContent = "投稿中…";

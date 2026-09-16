@@ -367,6 +367,13 @@ button, select, input { font-family: inherit; }
   color: var(--danger);
   font-weight: 700;
 }
+.login-required-msg {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 0.8rem;
+  color: var(--danger);
+  white-space: nowrap;
+}
 
 /* placeholder media gradients — kept as muted neutrals so the yellow price tag stays the only accent moment */
 .ph-1 { background: linear-gradient(135deg, #EDEBE4, #DFDCD2); }
@@ -519,6 +526,28 @@ function saveLikedIds(likedIds) {
 }
 
 /* ============================================================
+   ログイン状態（認証がないためlocalStorageのモック）
+   ============================================================ */
+const CURRENT_USER_KEY = "oshipi:currentUser";
+function isLoggedIn() {
+  try {
+    return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) ?? "null") !== null;
+  } catch {
+    return false;
+  }
+}
+function showLoginRequiredMessage(anchorEl) {
+  const existing = anchorEl.parentElement.querySelector(".login-required-msg");
+  if (existing) existing.remove();
+  const msg = document.createElement("span");
+  msg.className = "login-required-msg";
+  msg.setAttribute("role", "alert");
+  msg.textContent = "ログインが必要です";
+  anchorEl.insertAdjacentElement("afterend", msg);
+  setTimeout(() => msg.remove(), 2500);
+}
+
+/* ============================================================
    FORMAT HELPERS
    ============================================================ */
 function formatBudget(yen) {
@@ -665,6 +694,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!btn || btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
+
+    if (!isLoggedIn()) {
+      showLoginRequiredMessage(btn);
+      return;
+    }
 
     const postId = btn.dataset.id;
     const nextLiked = !likedIds.has(postId);
