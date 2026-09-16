@@ -257,43 +257,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   font-weight: 700;
 }
 
-.tag-input-row {
-  display: flex;
-  gap: 8px;
-}
-.tag-input-row input { flex: 1; min-width: 0; }
-
-.tag-chip-list {
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--accent);
-  color: var(--ink);
-  border-radius: 999px;
-  padding: 0.3em 0.4em 0.3em 0.9em;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-.tag-chip button {
-  background: transparent;
-  border: none;
-  color: var(--ink);
-  font-size: 0.95rem;
-  line-height: 1;
-  padding: 0.3em;
-  border-radius: 50%;
-  cursor: pointer;
-}
-.tag-chip button:hover { background: rgba(3, 3, 3, 0.08); }
-
 .filter-actions {
   display: flex;
   gap: 10px;
@@ -612,15 +575,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
         <div class="chip-group" id="genre-chip-group" role="group" aria-labelledby="genre-legend"></div>
       </fieldset>
 
-      <!-- やりたい分野をハッシュタグ的に追加。GET /api/posts の tags パラメータに渡す（OR絞り込み） -->
-      <div class="field-group">
-        <label class="field-group__label" for="tag-input">やりたい分野を追加</label>
-        <div class="tag-input-row">
-          <input type="text" id="tag-input" placeholder="例: 写真, 手作り">
-        </div>
-        <ul class="tag-chip-list" id="tag-chip-list"></ul>
-      </div>
-
       <div class="filter-actions">
         <button type="submit" class="btn btn-search">検索する</button>
         <button type="button" class="btn btn-clear" id="reset-btn">条件をクリア</button>
@@ -636,7 +590,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     <div class="results-grid" id="results-grid"></div>
     <div class="empty-state" id="empty-state" hidden>
       <h2>条件に合う投稿が見つかりませんでした</h2>
-      <p>予算やジャンル、やりたい分野を変えて、もう一度探してみてください。</p>
+      <p>予算や所要時間、ジャンルを変えて、もう一度探してみてください。</p>
       <button type="button" id="empty-reset-btn">絞り込みをリセット</button>
     </div>
     <div class="empty-state" id="fetch-error" hidden>
@@ -706,7 +660,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     durationMax: null,
     includeNullDuration: true,
     genres: new Set(),
-    tags: [],
   };
 
   // 検索リクエストは非同期なので、古いレスポンスで新しい結果を
@@ -739,43 +692,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       });
       group.appendChild(btn);
     });
-  }
-
-  /* ============================================================
-     TAG INPUT
-     ============================================================ */
-  function renderTagChips() {
-    const list = document.getElementById("tag-chip-list");
-    list.innerHTML = "";
-    filterState.tags.forEach((tag) => {
-      const li = document.createElement("li");
-      li.className = "tag-chip";
-      const span = document.createElement("span");
-      span.textContent = `#${tag}`;
-      const removeBtn = document.createElement("button");
-      removeBtn.type = "button";
-      removeBtn.textContent = "×";
-      removeBtn.setAttribute("aria-label", `${tag}タグを削除`);
-      removeBtn.addEventListener("click", () => {
-        filterState.tags = filterState.tags.filter((t) => t !== tag);
-        renderTagChips();
-        applyFilters();
-      });
-      li.append(span, removeBtn);
-      list.appendChild(li);
-    });
-  }
-
-  function addTagFromInput() {
-    const input = document.getElementById("tag-input");
-    const value = input.value.trim().replace(/^#/, "");
-    const alreadyAdded = filterState.tags.some((t) => t.toLowerCase() === value.toLowerCase());
-    if (value && !alreadyAdded) {
-      filterState.tags.push(value);
-      renderTagChips();
-      applyFilters();
-    }
-    input.value = "";
   }
 
   /* ============================================================
@@ -866,7 +782,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       params.set("durationMax", String(filterState.durationMax));
     }
     if (filterState.genres.size > 0) params.set("genre", [...filterState.genres].join(","));
-    if (filterState.tags.length > 0) params.set("tags", filterState.tags.join(","));
     params.set("limit", "100"); // ページングUIが無いので、上限いっぱいまで一度に取得する
     return params;
   }
@@ -1024,7 +939,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     filterState.durationMax = null;
     filterState.includeNullDuration = true;
     filterState.genres.clear();
-    filterState.tags = [];
 
     document.getElementById("budget-min").value = "";
     document.getElementById("budget-max").value = "";
@@ -1032,12 +946,10 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     document.getElementById("duration-min").value = "";
     document.getElementById("duration-max").value = "";
     document.getElementById("include-null-duration").checked = true;
-    document.getElementById("tag-input").value = "";
     document.querySelectorAll("#genre-chip-group .chip").forEach((c) => {
       c.classList.remove("is-active");
       c.setAttribute("aria-pressed", "false");
     });
-    renderTagChips();
     applyFilters();
   }
 
@@ -1045,7 +957,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     const form = document.getElementById("search-form");
     const budgetMin = document.getElementById("budget-min");
     const budgetMax = document.getElementById("budget-max");
-    const tagInput = document.getElementById("tag-input");
 
     form.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -1087,14 +998,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     includeNullDuration.addEventListener("change", () => {
       filterState.includeNullDuration = includeNullDuration.checked;
       applyFilters();
-    });
-
-    tagInput.addEventListener("keydown", (e) => {
-      if (e.isComposing) return;
-      if (e.key === "Enter" || e.key === ",") {
-        e.preventDefault();
-        addTagFromInput();
-      }
     });
 
     document.getElementById("reset-btn").addEventListener("click", resetFilters);
@@ -1139,7 +1042,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   /* ============================================================
      INIT
      ============================================================ */
-  renderTagChips();
   initEvents();
   initLikeButton();
   fetchGenres();
