@@ -88,6 +88,7 @@ button, select, input, textarea { font-family: inherit; }
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--ink);
+  text-decoration: none;
   white-space: nowrap;
 }
 .nav-links {
@@ -508,13 +509,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   color: var(--danger);
   font-weight: 700;
 }
-.login-required-msg {
-  display: inline-block;
-  margin-left: 8px;
-  font-size: 0.8rem;
-  color: var(--danger);
-  white-space: nowrap;
-}
 
 /* placeholder media gradients — muted neutrals so the yellow price tag stays the only accent moment */
 .ph-1 { background: linear-gradient(135deg, #EDEBE4, #DFDCD2); }
@@ -556,8 +550,8 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   <div class="container">
     <a class="site-logo" href="../index.html">オシピ！</a>
     <nav class="nav-links">
-      <span class="nav-user" id="navUser" hidden></span>
-      <a class="btn-primary" href="../post/index.html">投稿する</a>
+      <a class="nav-user" id="navUser" href="../login/index.html" hidden></a>
+      <a class="btn-primary" id="navPostBtn" href="../post/index.html">投稿する</a>
     </nav>
   </div>
 </header>
@@ -669,11 +663,10 @@ input:focus { outline: none; border-color: var(--accent-dark); }
      ログイン状態（認証がないためlocalStorageのモック）
      ============================================================ */
   // ログイン状態はサーバーのセッション（HttpOnly Cookie）が持っているので /api/auth/me で確認する。
-  // Cookie は別オリジンには渡らないため、ここだけは同一オリジンの相対パスを使う。
   let sessionPromise = null;
   function fetchCurrentUser() {
     if (!sessionPromise) {
-      sessionPromise = fetch("/api/auth/me", { credentials: "include" })
+      sessionPromise = fetch(`${API_BASE}/api/auth/me`, { credentials: "include" })
         .then(res => (res.ok ? res.json() : null))
         .then(data => data?.user ?? null)
         .catch(() => null);
@@ -684,6 +677,16 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     return (await fetchCurrentUser()) !== null;
   }
 
+  // ヘッダーの「投稿する」は未ログインならダイアログで止める
+  document.getElementById("navPostBtn").addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (await isLoggedIn()) {
+      location.href = e.currentTarget.href;
+      return;
+    }
+    showLoginDialog("../login/index.html", "投稿するにはログインが必要です。ログイン画面へ移動しますか？");
+  });
+
   // ヘッダーにログイン中の表示名を出す（未ログインのときは出さない）
   fetchCurrentUser().then(user => {
     const el = document.getElementById("navUser");
@@ -691,17 +694,6 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     el.textContent = user.displayName;
     el.hidden = false;
   });
-
-  function showLoginRequiredMessage(anchorEl) {
-    const existing = anchorEl.parentElement.querySelector(".login-required-msg");
-    if (existing) existing.remove();
-    const msg = document.createElement("span");
-    msg.className = "login-required-msg";
-    msg.setAttribute("role", "alert");
-    msg.textContent = "ログインが必要です";
-    anchorEl.insertAdjacentElement("afterend", msg);
-    setTimeout(() => msg.remove(), 2500);
-  }
 
   /* ============================================================
      STATE
@@ -1123,7 +1115,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       e.stopPropagation();
 
       if (!(await isLoggedIn())) {
-        showLoginRequiredMessage(btn);
+        showLoginDialog("../login/index.html");
         return;
       }
 

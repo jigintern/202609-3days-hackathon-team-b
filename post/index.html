@@ -84,6 +84,7 @@ button, select, input, textarea { font-family: inherit; }
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--ink);
+  text-decoration: none;
   white-space: nowrap;
 }
 .nav-links {
@@ -451,6 +452,46 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--accent);
   font-weight: 700;
 }
+.login-dialog {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px 20px 20px;
+  max-width: 320px;
+  width: calc(100% - 32px);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+}
+.login-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+.login-dialog__title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+.login-dialog__text {
+  margin: 0 0 20px;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--ink-muted);
+}
+.login-dialog__actions { display: flex; gap: 8px; justify-content: flex-end; }
+.login-dialog__actions button {
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.login-dialog__cancel {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+}
+.login-dialog__ok {
+  border: none;
+  background: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+}
 </style>
 </head>
 <body>
@@ -459,7 +500,7 @@ input:focus, select:focus, textarea:focus {
   <div class="container">
     <a class="site-logo" href="../index.html">オシピ！</a>
     <nav class="nav-links">
-      <span class="nav-user" id="navUser" hidden></span>
+      <a class="nav-user" id="navUser" href="../login/index.html" hidden></a>
       <a class="header-cancel" href="../index.html">やめる</a>
     </nav>
   </div>
@@ -575,6 +616,15 @@ input:focus, select:focus, textarea:focus {
   </div>
 </div>
 
+<dialog class="login-dialog" id="loginDialog">
+  <h2 class="login-dialog__title">ログインが必要です</h2>
+  <p class="login-dialog__text">投稿するにはログインが必要です。ログイン画面へ移動しますか？</p>
+  <div class="login-dialog__actions">
+    <button type="button" class="login-dialog__cancel" id="loginDialogCancel">閉じる</button>
+    <button type="button" class="login-dialog__ok" id="loginDialogOk">ログインする</button>
+  </div>
+</dialog>
+
 <script>
   // ------- 定数 -------
   // ジャンルと都道府県は /api/genres と /api/prefectures から取得する。
@@ -603,13 +653,16 @@ input:focus, select:focus, textarea:focus {
   const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
   const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+  // 他画面（shared/common.js）と同じく本番APIに固定する。
+  // ローカルで開いた画面からでも叩けるよう、API 側で localhost オリジンの credentials を許可している。
+  const API_BASE = "https://intern-b.tekitou.app";
+
   // ------- ログイン状態（認証がないためlocalStorageのモック） -------
   // ログイン状態はサーバーのセッション（HttpOnly Cookie）が持っているので /api/auth/me で確認する。
-  // Cookie は別オリジンには渡らないため、ここだけは同一オリジンの相対パスを使う。
   let sessionPromise = null;
   function fetchCurrentUser() {
     if (!sessionPromise) {
-      sessionPromise = fetch("/api/auth/me", { credentials: "include" })
+      sessionPromise = fetch(`${API_BASE}/api/auth/me`, { credentials: "include" })
         .then(res => (res.ok ? res.json() : null))
         .then(data => data?.user ?? null)
         .catch(() => null);
@@ -618,6 +671,16 @@ input:focus, select:focus, textarea:focus {
   }
   async function isLoggedIn() {
     return (await fetchCurrentUser()) !== null;
+  }
+
+  // 未ログインのまま投稿しようとしたときの誘導ダイアログ
+  const loginDialog = document.getElementById("loginDialog");
+  document.getElementById("loginDialogCancel").addEventListener("click", () => loginDialog.close());
+  document.getElementById("loginDialogOk").addEventListener("click", () => {
+    location.href = "../login/index.html";
+  });
+  function showLoginDialog() {
+    loginDialog.showModal();
   }
 
   // ヘッダーにログイン中の表示名を出す（未ログインのときは出さない）
@@ -690,8 +753,8 @@ input:focus, select:focus, textarea:focus {
   async function loadOptions() {
     try {
       const [genresRes, prefsRes] = await Promise.all([
-        fetch("/api/genres"),
-        fetch("/api/prefectures")
+        fetch(`${API_BASE}/api/genres`),
+        fetch(`${API_BASE}/api/prefectures`)
       ]);
 
       if (genresRes.ok) {
@@ -926,7 +989,7 @@ input:focus, select:focus, textarea:focus {
       const form = new FormData();
       form.append("file", image.file, image.name);
 
-      const res = await fetch("/api/images", { method: "POST", body: form });
+      const res = await fetch(`${API_BASE}/api/images`, { method: "POST", body: form, credentials: "include" });
       if (!res.ok) {
         throw new Error(await errorMessage(res, `画像「${image.name}」の送信に失敗しました`));
       }
@@ -946,8 +1009,7 @@ input:focus, select:focus, textarea:focus {
     const isEditing = state.mode === "editing";
     
     if (!(await isLoggedIn())) {
-      submitStatus.textContent = "ログインが必要です";
-      submitStatus.style.color = "var(--danger)";
+      showLoginDialog();
       return;
     }
 
@@ -970,15 +1032,17 @@ input:focus, select:focus, textarea:focus {
       });
 
       const res = isEditing
-        ? await fetch(`/api/posts/${encodeURIComponent(state.postId)}`, {
+        ? await fetch(`${API_BASE}/api/posts/${encodeURIComponent(state.postId)}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body
+            body,
+            credentials: "include"
           })
-        : await fetch("/api/posts", {
+        : await fetch(`${API_BASE}/api/posts`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body
+            body,
+            credentials: "include"
           });
 
       if (!res.ok) {
@@ -1026,7 +1090,7 @@ input:focus, select:focus, textarea:focus {
     submitStatus.textContent = "投稿を読み込み中…";
 
     try {
-      const res = await fetch(`/api/posts/${encodeURIComponent(state.postId)}`);
+      const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(state.postId)}`);
       if (!res.ok) throw new Error("投稿の取得に失敗しました");
       const post = await res.json();
 
@@ -1041,7 +1105,13 @@ input:focus, select:focus, textarea:focus {
       renderSteps();
 
       // 既存画像は uploadedUrl を埋めておき、送信時の再アップロードをスキップさせる
-      state.images = (post.images || []).map(url => ({ name: url, dataUrl: url, file: null, uploadedUrl: url }));
+      // dataUrl は表示用なので絶対URLに、uploadedUrl は保存される値なので相対のままにする
+      state.images = (post.images || []).map(url => ({
+        name: url,
+        dataUrl: /^https?:\/\//.test(url) ? url : `${API_BASE}${url}`,
+        file: null,
+        uploadedUrl: url
+      }));
       renderImages();
 
       state.genre = post.genre ?? "";
