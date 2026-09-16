@@ -330,6 +330,16 @@ button, select, input { font-family: inherit; }
   color: var(--ink-muted);
   margin: 0;
 }
+/* 所要時間は探すときの判断材料になりやすいので、他のメタ情報より少しだけ強調する */
+.card__duration {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
 .card__desc {
   font-size: 0.9rem;
   margin: 0;
@@ -564,9 +574,15 @@ function renderPostCard(post, index, likedIds) {
   title.className = "card__title";
   title.textContent = post.title;
 
+  // 所要時間は探すときの判断材料になりやすいので、他のメタ情報と分けて少し強調する
+  const duration = document.createElement("p");
+  duration.className = "card__duration";
+  duration.innerHTML = `<span aria-hidden="true">⏱</span>`;
+  duration.append(formatDuration(post.durationMin));
+
   const meta = document.createElement("p");
   meta.className = "card__meta";
-  meta.textContent = `${post.genreLabel} ・ ${post.prefecture} ・ ${formatDuration(post.durationMin)}`;
+  meta.textContent = [post.genreLabel, post.prefecture].filter(Boolean).join(" ・ ");
 
   const desc = document.createElement("p");
   desc.className = "card__desc";
@@ -586,7 +602,7 @@ function renderPostCard(post, index, likedIds) {
 
   footer.append(footerText, likeBtn);
 
-  body.append(title, meta, desc, footer);
+  body.append(title, duration, meta, desc, footer);
   card.append(media, body);
   return card;
 }

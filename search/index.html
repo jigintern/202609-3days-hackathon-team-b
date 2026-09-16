@@ -449,6 +449,16 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   color: var(--ink-muted);
   margin: 0;
 }
+/* 所要時間は探すときの判断材料になりやすいので、他のメタ情報より少しだけ強調する */
+.card__duration {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
 .card__desc {
   font-size: 0.9rem;
   margin: 0;
@@ -567,6 +577,27 @@ input:focus { outline: none; border-color: var(--accent-dark); }
         </label>
       </fieldset>
 
+      <!-- APIは durationMax しか受け取れないので、最短の指定や「未設定も表示」は手元で絞り込む -->
+      <fieldset class="field-group">
+        <legend>所要時間で絞り込む</legend>
+        <div class="budget-row">
+          <div class="budget-field">
+            <label for="duration-min">最短 (分)</label>
+            <input type="number" id="duration-min" name="durationMin" min="0" step="10" placeholder="0" inputmode="numeric">
+          </div>
+          <span class="budget-sep" aria-hidden="true">〜</span>
+          <div class="budget-field">
+            <label for="duration-max">最長 (分)</label>
+            <input type="number" id="duration-max" name="durationMax" min="0" step="10" placeholder="上限なし" inputmode="numeric">
+          </div>
+        </div>
+        <p class="field-error" id="duration-error" role="alert" hidden>最短の時間は最長の時間以下にしてください</p>
+        <label class="checkbox-row">
+          <input type="checkbox" id="include-null-duration" checked>
+          <span>時間未設定の投稿も表示する</span>
+        </label>
+      </fieldset>
+
       <!-- ジャンル一覧は GET /api/genres から取得。複数選択でOR絞り込み（APIのgenreパラメータに準拠） -->
       <fieldset class="field-group">
         <legend id="genre-legend">ジャンルで絞り込む</legend>
@@ -649,6 +680,9 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     budgetMin: null,
     budgetMax: null,
     includeNullBudget: true,
+    durationMin: null,
+    durationMax: null,
+    includeNullDuration: true,
     genres: new Set(),
     tags: [],
   };
@@ -740,24 +774,32 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   }
 
   /* ============================================================
-     予算範囲のバリデーション（最低 > 最高だと必ず0件になるため、
+     範囲入力のバリデーション（最小 > 最大だと必ず0件になるため、
      検索を投げる前にフロント側で気づけるようにする）
      ============================================================ */
-  function updateBudgetRangeUI() {
-    const budgetMinInput = document.getElementById("budget-min");
-    const budgetMaxInput = document.getElementById("budget-max");
-    const errorEl = document.getElementById("budget-error");
-    const { budgetMin, budgetMax } = filterState;
+  function updateRangeUI(minId, maxId, errorId, min, max) {
+    const minInput = document.getElementById(minId);
+    const maxInput = document.getElementById(maxId);
 
-    const isValid = !(budgetMin !== null && budgetMax !== null && budgetMin > budgetMax);
-    errorEl.hidden = isValid;
+    const isValid = !(min !== null && max !== null && min > max);
+    document.getElementById(errorId).hidden = isValid;
 
     // 逆転入力をしにくくする（スピンボタン操作時のガード。直接入力までは防げない）
-    if (budgetMax !== null) budgetMinInput.max = String(budgetMax);
-    else budgetMinInput.removeAttribute("max");
-    budgetMaxInput.min = budgetMin !== null ? String(budgetMin) : "0";
+    if (max !== null) minInput.max = String(max);
+    else minInput.removeAttribute("max");
+    maxInput.min = min !== null ? String(min) : "0";
 
     return isValid;
+  }
+
+  function updateBudgetRangeUI() {
+    return updateRangeUI("budget-min", "budget-max", "budget-error",
+      filterState.budgetMin, filterState.budgetMax);
+  }
+
+  function updateDurationRangeUI() {
+    return updateRangeUI("duration-min", "duration-max", "duration-error",
+      filterState.durationMin, filterState.durationMax);
   }
 
   /* APIに budgetMin/budgetMax を渡すと、SQLのNULL比較で予算未設定(budget: null)の投稿が
@@ -768,11 +810,21 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       && (filterState.budgetMin !== null || filterState.budgetMax !== null);
   }
 
+  /* APIには durationMax しか無いので、最短を指定したときは必ず手元で絞り込む。
+     「時間未設定も表示する」がONのときは、予算と同じ理由で durationMax も渡せない */
+  function filtersDurationOnClient() {
+    return filterState.durationMin !== null
+      || (filterState.includeNullDuration && filterState.durationMax !== null);
+  }
+
   function buildSearchParams() {
     const params = new URLSearchParams();
     if (!filtersBudgetOnClient()) {
       if (filterState.budgetMin !== null) params.set("budgetMin", String(filterState.budgetMin));
       if (filterState.budgetMax !== null) params.set("budgetMax", String(filterState.budgetMax));
+    }
+    if (!filtersDurationOnClient() && filterState.durationMax !== null) {
+      params.set("durationMax", String(filterState.durationMax));
     }
     if (filterState.genres.size > 0) params.set("genre", [...filterState.genres].join(","));
     if (filterState.tags.length > 0) params.set("tags", filterState.tags.join(","));
@@ -780,18 +832,32 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     return params;
   }
 
-  function filterByBudgetOnClient(data) {
-    if (!filtersBudgetOnClient()) return data;
-
+  function matchesBudget(post) {
+    if (post.budget === null) return true; // 予算未設定は残す
     const { budgetMin, budgetMax } = filterState;
-    const posts = data.posts.filter((post) => {
-      if (post.budget === null) return true; // 予算未設定は残す
-      if (budgetMin !== null && post.budget < budgetMin) return false;
-      if (budgetMax !== null && post.budget > budgetMax) return false;
-      return true;
-    });
+    if (budgetMin !== null && post.budget < budgetMin) return false;
+    if (budgetMax !== null && post.budget > budgetMax) return false;
+    return true;
+  }
 
-    // 予算条件をAPIに渡していないぶん data.total は絞り込み前の件数なので数え直す
+  function matchesDuration(post) {
+    if (post.durationMin === null) return filterState.includeNullDuration;
+    const { durationMin, durationMax } = filterState;
+    if (durationMin !== null && post.durationMin < durationMin) return false;
+    if (durationMax !== null && post.durationMin > durationMax) return false;
+    return true;
+  }
+
+  function filterPostsOnClient(data) {
+    const needsBudget = filtersBudgetOnClient();
+    const needsDuration = filtersDurationOnClient();
+    if (!needsBudget && !needsDuration) return data;
+
+    const posts = data.posts.filter((post) =>
+      (!needsBudget || matchesBudget(post)) && (!needsDuration || matchesDuration(post))
+    );
+
+    // 条件の一部をAPIに渡していないぶん data.total は絞り込み前の件数なので数え直す
     return { ...data, posts, total: posts.length };
   }
 
@@ -804,8 +870,11 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     const fetchError = document.getElementById("fetch-error");
     const countEl = document.getElementById("results-count");
 
-    if (!updateBudgetRangeUI()) {
-      // 予算の範囲が逆転していて必ず0件になるので、検索自体を送らない
+    // 片方でも範囲が逆転していると必ず0件になるので、検索自体を送らない。
+    // 両方チェックしてから判定し、エラー表示が片方だけ残らないようにする
+    const budgetOk = updateBudgetRangeUI();
+    const durationOk = updateDurationRangeUI();
+    if (!budgetOk || !durationOk) {
       grid.innerHTML = "";
       grid.hidden = true;
       emptyState.hidden = true;
@@ -825,7 +894,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       if (!res.ok) throw new Error(`検索に失敗しました (${res.status})`);
       const data = await res.json();
       if (seq !== requestSeq) return;
-      render(filterByBudgetOnClient(data));
+      render(filterPostsOnClient(data));
     } catch (err) {
       if (seq !== requestSeq) return;
       console.error(err);
@@ -854,9 +923,9 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     );
     card.append(cardLink);
 
+    // 所要時間は探すときの判断材料になりやすいので、他のメタ情報より少し強調する
     const metaParts = [
       post.prefecture || null,
-      formatDuration(post.durationMin),
       post.steps.length > 0 ? `手順${post.steps.length}つ` : null,
     ].filter(Boolean);
 
@@ -873,7 +942,8 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       <div class="card__body">
         <span class="card__genre-badge">${escapeHtml(post.genreLabel)}</span>
         <h3 class="card__title">${escapeHtml(post.title)}</h3>
-        <p class="card__meta">${escapeHtml(metaParts.join(" ・ "))}</p>
+        <p class="card__duration"><span aria-hidden="true">⏱</span>${escapeHtml(formatDuration(post.durationMin))}</p>
+        ${metaParts.length > 0 ? `<p class="card__meta">${escapeHtml(metaParts.join(" ・ "))}</p>` : ""}
         <p class="card__desc">${escapeHtml(post.tip || post.body)}</p>
         <div class="card__footer">
           <span>${escapeHtml(post.authorName)} ・ ${formatDateShort(post.createdAt)}</span>
@@ -909,12 +979,18 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     filterState.budgetMin = null;
     filterState.budgetMax = null;
     filterState.includeNullBudget = true;
+    filterState.durationMin = null;
+    filterState.durationMax = null;
+    filterState.includeNullDuration = true;
     filterState.genres.clear();
     filterState.tags = [];
 
     document.getElementById("budget-min").value = "";
     document.getElementById("budget-max").value = "";
     document.getElementById("include-null-budget").checked = true;
+    document.getElementById("duration-min").value = "";
+    document.getElementById("duration-max").value = "";
+    document.getElementById("include-null-duration").checked = true;
     document.getElementById("tag-input").value = "";
     document.querySelectorAll("#genre-chip-group .chip").forEach((c) => {
       c.classList.remove("is-active");
@@ -950,6 +1026,25 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     const includeNullBudget = document.getElementById("include-null-budget");
     includeNullBudget.addEventListener("change", () => {
       filterState.includeNullBudget = includeNullBudget.checked;
+      applyFilters();
+    });
+
+    const durationMin = document.getElementById("duration-min");
+    const durationMax = document.getElementById("duration-max");
+
+    durationMin.addEventListener("input", () => {
+      filterState.durationMin = durationMin.value === "" ? null : Number(durationMin.value);
+      debouncedApply();
+    });
+
+    durationMax.addEventListener("input", () => {
+      filterState.durationMax = durationMax.value === "" ? null : Number(durationMax.value);
+      debouncedApply();
+    });
+
+    const includeNullDuration = document.getElementById("include-null-duration");
+    includeNullDuration.addEventListener("change", () => {
+      filterState.includeNullDuration = includeNullDuration.checked;
       applyFilters();
     });
 

@@ -19,7 +19,7 @@
     --line: #ECECEC;
     --bg: #FFFFFF;
     --bg-soft: #FAFAFA;
-    --danger: #FF5C7A;
+    --danger: #D8453B; /* 他画面と同じ値に揃える */
   }
 
   * { box-sizing: border-box; }
@@ -315,6 +315,9 @@
   }
   .stat-row .label { font-size: 12px; color: var(--text-sub); }
   .stat-row .value { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  /* 所要時間は探すときの判断材料になりやすいので、他の項目より少しだけ強調する */
+  .stat-row.is-highlighted .icon { background: var(--accent); }
+  .stat-row.is-highlighted .value { font-size: 17px; }
 
   /* Sidebar: actions */
   .action-card {
@@ -551,7 +554,7 @@
           <div class="value" id="statArea"></div>
         </div>
       </div>
-      <div class="stat-row">
+      <div class="stat-row is-highlighted">
         <span class="icon">⏱️</span>
         <div>
           <div class="label">所要時間</div>
