@@ -451,13 +451,12 @@ button, select, input { font-family: inherit; }
   </div>
 </main>
 
+<script src="shared/common.js"></script>
 <script>
 /* ============================================================
    API CLIENT
+   API_BASE や各種ヘルパーは shared/common.js にある
    ============================================================ */
-const API_BASE = "https://intern-b.tekitou.app/api";
-const LIKED_STORAGE_KEY = "oshipi:likedPostIds";
-
 const FALLBACK_GENRES = [
   { key: "pilgrimage", label: "聖地巡礼" },
   { key: "craft", label: "グッズ制作" },
@@ -469,7 +468,7 @@ const FALLBACK_GENRES = [
 
 async function fetchGenres() {
   try {
-    const res = await fetch(`${API_BASE}/genres`);
+    const res = await fetch(`${API_BASE}/api/genres`);
     if (!res.ok) throw new Error(`failed to fetch genres: ${res.status}`);
     const { genres } = await res.json();
     return genres;
@@ -485,75 +484,15 @@ async function fetchPosts({ keyword, maxBudget, genre }) {
   if (genre !== "all") params.set("genre", genre);
   if (Number.isFinite(maxBudget)) params.set("budgetMax", String(maxBudget));
 
-  const res = await fetch(`${API_BASE}/posts?${params.toString()}`);
+  const res = await fetch(`${API_BASE}/api/posts?${params.toString()}`);
   if (!res.ok) throw new Error(`failed to fetch posts: ${res.status}`);
   const { posts } = await res.json();
   return posts;
 }
 
-async function setPostLike(postId, liked) {
-  const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(postId)}/like`, {
-    method: liked ? "POST" : "DELETE",
-  });
-  if (!res.ok) throw new Error(`failed to update like: ${res.status}`);
-  const { likeCount } = await res.json();
-  return likeCount;
-}
-
-/* ============================================================
-   LIKED POSTS（ローカル記録・二重カウント防止）
-   ============================================================ */
-function getLikedIds() {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(LIKED_STORAGE_KEY) ?? "[]"));
-  } catch {
-    return new Set();
-  }
-}
-function saveLikedIds(likedIds) {
-  try {
-    localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify([...likedIds]));
-  } catch {
-    /* プライベートブラウジング等でlocalStorageが使えない場合は諦める */
-  }
-}
-
-/* ============================================================
-   FORMAT HELPERS
-   ============================================================ */
-function formatBudget(yen) {
-  if (yen == null) return "予算未設定";
-  return yen === 0 ? "無料" : `¥${yen.toLocaleString("ja-JP")}`;
-}
-function formatDuration(minutes) {
-  if (minutes == null) return "時間未設定";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h && m) return `${h}時間${m}分`;
-  if (h) return `${h}時間`;
-  return `${m}分`;
-}
-function toAbsoluteApiUrl(path) {
-  return new URL(path, API_BASE).toString();
-}
-function formatDate(isoDate) {
-  const d = new Date(isoDate);
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-function placeholderClass(index) {
-  return `ph-${(index % 5) + 1}`;
-}
-
 /* ============================================================
    RENDER
    ============================================================ */
-function updateLikeButton(btn, liked, likeCount) {
-  btn.classList.toggle("is-liked", liked);
-  btn.setAttribute("aria-pressed", String(liked));
-  btn.setAttribute("aria-label", `いいね ${likeCount}件`);
-  btn.innerHTML = `<span aria-hidden="true">${liked ? "❤️" : "🤍"}</span>${likeCount}`;
-}
-
 function renderPostCard(post, index, likedIds) {
   // カード内にいいねボタン(<button>)を置くため、外枠は<a>ではなく<article>にし、
   // 遷移用のリンクは全面を覆う透明な<a>として別に重ねる(<a>はインタラクティブ要素を子孫に持てないため)
@@ -571,7 +510,7 @@ function renderPostCard(post, index, likedIds) {
 
   if (post.images && post.images.length > 0) {
     const img = document.createElement("img");
-    img.src = toAbsoluteApiUrl(post.images[0]);
+    img.src = resolveUrl(post.images[0]);
     img.alt = post.title;
     img.loading = "lazy";
     media.append(img);
@@ -608,7 +547,7 @@ function renderPostCard(post, index, likedIds) {
   footer.className = "card__footer";
 
   const footerText = document.createElement("span");
-  footerText.textContent = `${post.authorName} ・ ${formatDate(post.createdAt)}`;
+  footerText.textContent = `${post.authorName} ・ ${formatDateShort(post.createdAt)}`;
 
   const likeBtn = document.createElement("button");
   likeBtn.type = "button";
@@ -639,17 +578,6 @@ function renderPostList(posts, likedIds) {
       console.error(`投稿 ${post.id} の描画に失敗しました`, err);
     }
   });
-}
-
-/* ============================================================
-   UTIL
-   ============================================================ */
-function debounce(fn, delay) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
 }
 
 /* ============================================================
