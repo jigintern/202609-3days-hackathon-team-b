@@ -316,6 +316,9 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 24px;
 }
+/* display:grid がブラウザ標準の [hidden]{display:none} を打ち消してしまうため、
+   JSで grid.hidden = true にしたときに確実に隠れるよう明示する */
+.results-grid[hidden] { display: none; }
 
 .empty-state {
   padding-block: 48px;
