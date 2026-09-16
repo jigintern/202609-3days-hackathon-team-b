@@ -29,6 +29,8 @@
 
   --form-w: 640px;
   --gutter: clamp(16px, 4vw, 32px);
+  --container-w: 1200px;
+  --header-gutter: clamp(16px, 4vw, 48px);
 }
 
 /* ============================================================
@@ -58,22 +60,41 @@ button, select, input, textarea { font-family: inherit; }
    HEADER
    ============================================================ */
 .site-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  border-bottom: 1px solid var(--line);
+}
+.site-header .container {
+  max-width: var(--container-w);
+  margin-inline: auto;
+  padding-inline: var(--header-gutter);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px var(--gutter);
-  background: var(--bg);
-  border-bottom: 1px solid var(--line);
+  gap: 16px;
+  padding-block: 18px;
 }
 .site-logo {
   font-family: var(--font-display);
   font-weight: 500;
   font-size: 1.5rem;
+  letter-spacing: 0.02em;
   text-decoration: none;
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.nav-link {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.nav-link:hover,
+.nav-link:focus-visible {
+  color: var(--ink);
 }
 .header-cancel {
   border: 1px solid var(--line);
@@ -439,8 +460,13 @@ input:focus, select:focus, textarea:focus {
 <body>
 
 <header class="site-header">
-  <a class="site-logo" href="../index.html">オシピ！</a>
-  <a class="header-cancel" href="../index.html">やめる</a>
+  <div class="container">
+    <a class="site-logo" href="../index.html">オシピ！</a>
+    <nav class="nav-links">
+      <a class="nav-link" href="../search/index.html">予算で探す</a>
+      <a class="header-cancel" href="../index.html">やめる</a>
+    </nav>
+  </div>
 </header>
 
 <main>
