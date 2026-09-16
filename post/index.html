@@ -680,12 +680,15 @@ input:focus, select:focus, textarea:focus {
 
   // 必須は「テキスト（タイトル＋本文）」「画像」「ジャンル」の3つ
   function validate() {
+    if (state.submitting) return;
+
+    // 直前の送信エラーの赤色を消す
+    submitStatus.style.color = "";
+
     const missing = [];
     if (!titleEl.value.trim() || !bodyEl.value.trim()) missing.push("テキスト");
     if (state.images.length === 0) missing.push("画像");
     if (!state.genre) missing.push("ジャンル");
-
-    if (state.submitting) return;
 
     submitBtn.disabled = missing.length > 0;
     submitStatus.textContent = missing.length > 0
@@ -838,6 +841,7 @@ input:focus, select:focus, textarea:focus {
     e.preventDefault();
     if (state.submitting || submitBtn.disabled) return;
 
+    let post;
     try {
       const images = await uploadImages();
 
@@ -863,11 +867,15 @@ input:focus, select:focus, textarea:focus {
         throw new Error(await errorMessage(res, "投稿の保存に失敗しました"));
       }
 
-      showDone(await res.json());
+      post = await res.json();
     } catch (err) {
       console.error(err);
-      showSubmitError(err.message ?? "通信に失敗しました。もう一度お試しください");
+      showSubmitError(err.message || "通信に失敗しました。もう一度お試しください");
+      return;
     }
+
+    // ここから先の失敗は「投稿は成功している」ので、送信エラーとして扱わない
+    showDone(post);
   });
 
   function showDone(post) {
@@ -875,9 +883,9 @@ input:focus, select:focus, textarea:focus {
       <div class="done">
         <div class="done__mark" aria-hidden="true">🌟</div>
         <h2>投稿しました！</h2>
-        <p>${escapeAttr(post.authorName)} として公開されました。</p>
+        <p>${escapeAttr(post?.authorName ?? "名無しさん")} として公開されました。</p>
         <div class="done__actions">
-          <a class="primary" href="../detail/index.html?id=${encodeURIComponent(post.id)}">投稿を見る</a>
+          <a class="primary" href="../detail/index.html?id=${encodeURIComponent(post?.id ?? "")}">投稿を見る</a>
           <a href="../index.html">トップにもどる</a>
           <button type="button" onclick="location.reload()">つづけて投稿する</button>
         </div>
