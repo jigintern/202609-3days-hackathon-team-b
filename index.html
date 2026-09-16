@@ -511,7 +511,11 @@ function getLikedIds() {
   }
 }
 function saveLikedIds(likedIds) {
-  localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify([...likedIds]));
+  try {
+    localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify([...likedIds]));
+  } catch {
+    /* プライベートブラウジング等でlocalStorageが使えない場合は諦める */
+  }
 }
 
 /* ============================================================
