@@ -260,6 +260,7 @@ button, select, input { font-family: inherit; }
    COMPONENTS: CARD
    ============================================================ */
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -270,8 +271,13 @@ button, select, input { font-family: inherit; }
   overflow: visible;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.card:hover, .card:focus-visible {
+.card:hover, .card:focus-within {
   transform: translateY(-4px);
+}
+.card__link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 
 .card__media {
@@ -345,6 +351,8 @@ button, select, input { font-family: inherit; }
   gap: 8px;
 }
 .card__like-btn {
+  position: relative;
+  z-index: 2;
   border: none;
   background: none;
   padding: 0;
@@ -543,9 +551,16 @@ function updateLikeButton(btn, liked, likeCount) {
 }
 
 function renderPostCard(post, index, likedIds) {
-  const card = document.createElement("a");
+  // カード内にいいねボタン(<button>)を置くため、外枠は<a>ではなく<article>にし、
+  // 遷移用のリンクは全面を覆う透明な<a>として別に重ねる(<a>はインタラクティブ要素を子孫に持てないため)
+  const card = document.createElement("article");
   card.className = "card";
-  card.href = `detail/index.html?id=${encodeURIComponent(post.id)}`;
+
+  const cardLink = document.createElement("a");
+  cardLink.className = "card__link";
+  cardLink.href = `detail/index.html?id=${encodeURIComponent(post.id)}`;
+  cardLink.setAttribute("aria-label", `${post.title}の詳細を見る`);
+  card.append(cardLink);
 
   const media = document.createElement("div");
   media.className = `card__media ${placeholderClass(index)}`;
