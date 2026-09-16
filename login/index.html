@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ログイン | オシピ！</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   TOKENS（トップページ・投稿ページと共通）
+   ============================================================ */
+:root {
+  --bg: #F7F7F7;
+  --surface: #FFFFFF;
+  --ink: #030303;
+  --ink-muted: #5C5C5C;
+  --accent: #FFEF6C;
+  --accent-dark: #E6D64A;
+  --line: #E3E3E1;
+  --danger: #D8453B;
+
+  --font-display: 'Kiwi Maru', serif;
+  --font-body: 'Zen Kaku Gothic New', sans-serif;
+
+  --form-w: 480px;
+  --gutter: clamp(16px, 4vw, 32px);
+  --container-w: 1200px;
+}
+
+/* ============================================================
+   BASE / RESET
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+button, input { font-family: inherit; }
+
+*:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.container {
+  max-width: var(--container-w);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* ============================================================
+   LAYOUT: HEADER
+   ============================================================ */
+.site-header {
+  border-bottom: 1px solid var(--line);
+}
+.site-header .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 18px;
+}
+.site-logo {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.5rem;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+.btn-primary {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  padding: 0.65em 1.35em;
+  border: 1px solid rgba(3, 3, 3, 0.08);
+  border-radius: 10px;
+  transition: filter 0.15s ease;
+}
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  filter: brightness(0.92);
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.nav-link {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.nav-link:hover,
+.nav-link:focus-visible {
+  color: var(--ink);
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.form-wrap {
+  max-width: var(--form-w);
+  margin-inline: auto;
+  padding: 48px var(--gutter) 120px;
+}
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.5rem;
+  margin: 0 0 4px;
+}
+.page-lead {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  margin: 0 0 24px;
+}
+
+/* ============================================================
+   FIELD
+   ============================================================ */
+.field {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+.field__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.field__label {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.field__error {
+  color: var(--danger);
+  font-size: 0.8rem;
+  margin: 6px 0 0;
+  min-height: 1.2em;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0.65em 0.8em;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+input:focus {
+  outline: none;
+  border-color: var(--accent-dark);
+}
+input.is-invalid {
+  border-color: var(--danger);
+}
+input.is-invalid:focus {
+  border-color: var(--danger);
+}
+
+.btn-submit {
+  display: block;
+  width: 100%;
+  border: none;
+  background: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.75em 1.8em;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn-submit:hover { background: var(--accent-dark); }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a class="site-logo" href="../index.html">オシピ！</a>
+    <nav class="nav-links">
+      <a class="nav-link" href="../search/index.html">予算で探す</a>
+      <a class="btn-primary" href="../post/index.html">投稿する</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <form class="form-wrap" id="loginForm" novalidate>
+    <h1 class="page-title">ログイン</h1>
+    <p class="page-lead">IDとパスワードでログインしてください。</p>
+
+    <section class="field">
+      <div class="field__head">
+        <span class="field__label">ID</span>
+      </div>
+      <input type="text" id="loginId" autocomplete="username" aria-describedby="loginIdError" maxlength="16">
+      <p class="field__error" id="loginIdError" role="alert"></p>
+    </section>
+
+    <section class="field">
+      <div class="field__head">
+        <span class="field__label">パスワード</span>
+      </div>
+      <input type="password" id="loginPassword" autocomplete="new-password" aria-describedby="loginPasswordError" maxlength="256">
+      <p class="field__error" id="loginPasswordError" role="alert"></p>
+    </section>
+
+    <section class="field">
+      <div class="field__head">
+        <span class="field__label">パスワード（確認）</span>
+      </div>
+      <input type="password" id="loginPasswordConfirm" autocomplete="new-password" aria-describedby="loginPasswordConfirmError" maxlength="256">
+      <p class="field__error" id="loginPasswordConfirmError" role="alert"></p>
+    </section>
+
+    <button type="submit" class="btn-submit" id="loginSubmitBtn">ログイン</button>
+  </form>
+</main>
+
+<script>
+  const CURRENT_USER_KEY = "oshipi:currentUser";
+
+  function getCurrentUser() {
+    try {
+      return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) ?? "null");
+    } catch {
+      return null;
+    }
+  }
+  function saveCurrentUser(user) {
+    try {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    } catch { /* ストレージ利用不可時は何もしない */ }
+  }
+
+  // 既にログイン済みならフォームを出さずトップへ
+  if (getCurrentUser()) {
+    location.href = "../index.html";
+  }
+
+  function setFieldError(input, errorEl, message) {
+    input.classList.toggle("is-invalid", Boolean(message));
+    if (message) input.setAttribute("aria-invalid", "true");
+    else input.removeAttribute("aria-invalid");
+    errorEl.textContent = message ?? "";
+  }
+
+  document.getElementById("loginForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    const idInput = document.getElementById("loginId");
+    const pwInput = document.getElementById("loginPassword");
+    const pwConfirmInput = document.getElementById("loginPasswordConfirm");
+    const idError = document.getElementById("loginIdError");
+    const pwError = document.getElementById("loginPasswordError");
+    const pwConfirmError = document.getElementById("loginPasswordConfirmError");
+
+    const id = idInput.value.trim();
+    const password = pwInput.value;
+    const passwordConfirm = pwConfirmInput.value;
+
+    setFieldError(idInput, idError, null);
+    setFieldError(pwInput, pwError, null);
+    setFieldError(pwConfirmInput, pwConfirmError, null);
+
+    let valid = true;
+
+    if (id.length < 4 || id.length > 16) {
+      setFieldError(idInput, idError, "IDは4〜16文字で入力してください");
+      valid = false;
+    }
+
+    if (password.length < 4 || password.length > 256) {
+      setFieldError(pwInput, pwError, "パスワードは4〜256文字で入力してください");
+      valid = false;
+    }
+
+    if (passwordConfirm.length < 4 || passwordConfirm.length > 256) {
+      setFieldError(pwConfirmInput, pwConfirmError, "確認用パスワードは4〜256文字で入力してください");
+      valid = false;
+    } else if (password !== passwordConfirm) {
+      setFieldError(pwConfirmInput, pwConfirmError, "パスワードが一致しません");
+      valid = false;
+    }
+
+    if (!valid) return;
+
+    // バックエンドに認証機能が無いため、送信動作はモック
+    saveCurrentUser({ id, loggedInAt: new Date().toISOString() });
+    location.href = "../index.html";
+  });
+</script>
+
+</body>
+</html>

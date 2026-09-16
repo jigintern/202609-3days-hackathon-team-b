@@ -487,6 +487,13 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   color: var(--danger);
   font-weight: 700;
 }
+.login-required-msg {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 0.8rem;
+  color: var(--danger);
+  white-space: nowrap;
+}
 
 /* placeholder media gradients — muted neutrals so the yellow price tag stays the only accent moment */
 .ph-1 { background: linear-gradient(135deg, #EDEBE4, #DFDCD2); }
@@ -659,6 +666,28 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   }
 
   const likedIds = getLikedIds();
+
+  /* ============================================================
+     ログイン状態（認証がないためlocalStorageのモック）
+     ============================================================ */
+  const CURRENT_USER_KEY = "oshipi:currentUser";
+  function isLoggedIn() {
+    try {
+      return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) ?? "null") !== null;
+    } catch {
+      return false;
+    }
+  }
+  function showLoginRequiredMessage(anchorEl) {
+    const existing = anchorEl.parentElement.querySelector(".login-required-msg");
+    if (existing) existing.remove();
+    const msg = document.createElement("span");
+    msg.className = "login-required-msg";
+    msg.setAttribute("role", "alert");
+    msg.textContent = "ログインが必要です";
+    anchorEl.insertAdjacentElement("afterend", msg);
+    setTimeout(() => msg.remove(), 2500);
+  }
 
   /* ============================================================
      STATE
@@ -1033,6 +1062,11 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       if (!btn || btn.disabled) return;
       e.preventDefault();
       e.stopPropagation();
+
+      if (!isLoggedIn()) {
+        showLoginRequiredMessage(btn);
+        return;
+      }
 
       const postId = btn.dataset.id;
       const nextLiked = !likedIds.has(postId);
