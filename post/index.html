@@ -492,7 +492,7 @@ input:focus, select:focus, textarea:focus {
       </div>
       <p class="field__hint">最大 5 枚。1 枚目が一覧のサムネイルになります。</p>
       <div class="image-grid" id="imageGrid"></div>
-      <input type="file" id="imageInput" accept="image/*" multiple hidden>
+      <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
     </section>
 
     <!-- ジャンル -->
@@ -577,12 +577,15 @@ input:focus, select:focus, textarea:focus {
   ];
 
   const MAX_IMAGES = 5;
+  // POST /api/images が受け付ける形式・サイズ。api/images.ts と揃えている
+  const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
   // ------- 状態 -------
   const state = {
     genre: "",
-    // dataUrl はプレビュー用、file はアップロード用
-    images: [],  // { name, dataUrl, file }
+    // dataUrl はプレビュー用、file はアップロード用、uploadedUrl は送信後のキャッシュ
+    images: [],  // { name, dataUrl, file, uploadedUrl }
     steps: [""],
     submitting: false
   };
@@ -604,8 +607,18 @@ input:focus, select:focus, textarea:focus {
   // ------- 初期描画 -------
   function renderGenres() {
     genreChipsEl.innerHTML = GENRES.map(g =>
-      `<button type="button" class="chip" data-genre="${g.key}" aria-pressed="false">${g.label}</button>`
+      `<button type="button" class="chip" data-genre="${g.key}">${g.label}</button>`
     ).join("");
+    syncGenreChips();
+  }
+
+  // state.genre をチップの見た目に反映する。再描画後にも呼ぶ
+  function syncGenreChips() {
+    genreChipsEl.querySelectorAll(".chip").forEach(c => {
+      const active = c.dataset.genre === state.genre;
+      c.classList.toggle("is-active", active);
+      c.setAttribute("aria-pressed", String(active));
+    });
   }
 
   function renderPrefectures() {
@@ -634,8 +647,11 @@ input:focus, select:focus, textarea:focus {
         const { prefectures } = await prefsRes.json();
         if (Array.isArray(prefectures) && prefectures.length > 0) {
           PREFECTURES = prefectures;
+          // 作り直すと選択が消えるので、選んでいた値を復元する
+          const selected = prefectureEl.value;
           prefectureEl.innerHTML = '<option value="">選択しない</option>';
           renderPrefectures();
+          prefectureEl.value = selected;
         }
       }
     } catch (err) {
@@ -680,12 +696,15 @@ input:focus, select:focus, textarea:focus {
 
   // 必須は「テキスト（タイトル＋本文）」「画像」「ジャンル」の3つ
   function validate() {
+    if (state.submitting) return;
+
+    // 直前の送信エラーの赤色を消す
+    submitStatus.style.color = "";
+
     const missing = [];
     if (!titleEl.value.trim() || !bodyEl.value.trim()) missing.push("テキスト");
     if (state.images.length === 0) missing.push("画像");
     if (!state.genre) missing.push("ジャンル");
-
-    if (state.submitting) return;
 
     submitBtn.disabled = missing.length > 0;
     submitStatus.textContent = missing.length > 0
@@ -717,11 +736,7 @@ input:focus, select:focus, textarea:focus {
     if (!chip) return;
     const key = chip.dataset.genre;
     state.genre = state.genre === key ? "" : key;
-    genreChipsEl.querySelectorAll(".chip").forEach(c => {
-      const active = c.dataset.genre === state.genre;
-      c.classList.toggle("is-active", active);
-      c.setAttribute("aria-pressed", String(active));
-    });
+    syncGenreChips();
     validate();
   });
 
@@ -761,26 +776,50 @@ input:focus, select:focus, textarea:focus {
     }
   });
 
+  // 送信してから 415 / 413 で弾かれないよう、選んだ時点で確認する
+  function rejectReason(file) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) return "対応していない形式です";
+    if (file.size > MAX_IMAGE_BYTES) return "8MB を超えています";
+    return null;
+  }
+
+  function showImageError(rejected) {
+    submitStatus.textContent = `追加できません：${rejected.join("・")}`;
+    submitStatus.style.color = "var(--danger)";
+  }
+
   imageInputEl.addEventListener("change", () => {
-    const files = Array.from(imageInputEl.files).slice(0, MAX_IMAGES - state.images.length);
+    const picked = Array.from(imageInputEl.files).slice(0, MAX_IMAGES - state.images.length);
+
+    // 同じファイルを選び直せるようにクリアする（File 自体は掴んだままなので問題ない）
+    imageInputEl.value = "";
+
+    const rejected = [];
+    const files = picked.filter(file => {
+      const reason = rejectReason(file);
+      if (reason) rejected.push(`${file.name}（${reason}）`);
+      return !reason;
+    });
+
     let remaining = files.length;
-    if (remaining === 0) return;
+    if (remaining === 0) {
+      if (rejected.length > 0) showImageError(rejected);
+      return;
+    }
 
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = () => {
-        state.images.push({ name: file.name, dataUrl: reader.result, file });
+        state.images.push({ name: file.name, dataUrl: reader.result, file, uploadedUrl: null });
         remaining -= 1;
         if (remaining === 0) {
           renderImages();
           validate();
+          if (rejected.length > 0) showImageError(rejected);
         }
       };
       reader.readAsDataURL(file);
     });
-
-    // 同じファイルを選び直せるようにクリアする
-    imageInputEl.value = "";
   });
 
   // ------- 送信 -------
@@ -817,6 +856,12 @@ input:focus, select:focus, textarea:focus {
     const urls = [];
 
     for (const [index, image] of state.images.entries()) {
+      // 保存に失敗して送り直すとき、アップロード済みの画像は R2 に二重に積まない
+      if (image.uploadedUrl) {
+        urls.push(image.uploadedUrl);
+        continue;
+      }
+
       setSubmitting(true, `画像を送信中… ${index + 1}/${state.images.length}`);
 
       const form = new FormData();
@@ -828,6 +873,7 @@ input:focus, select:focus, textarea:focus {
       }
 
       const { url } = await res.json();
+      image.uploadedUrl = url;
       urls.push(url);
     }
 
@@ -838,6 +884,7 @@ input:focus, select:focus, textarea:focus {
     e.preventDefault();
     if (state.submitting || submitBtn.disabled) return;
 
+    let post;
     try {
       const images = await uploadImages();
 
@@ -863,11 +910,15 @@ input:focus, select:focus, textarea:focus {
         throw new Error(await errorMessage(res, "投稿の保存に失敗しました"));
       }
 
-      showDone(await res.json());
+      post = await res.json();
     } catch (err) {
       console.error(err);
-      showSubmitError(err.message ?? "通信に失敗しました。もう一度お試しください");
+      showSubmitError(err.message || "通信に失敗しました。もう一度お試しください");
+      return;
     }
+
+    // ここから先の失敗は「投稿は成功している」ので、送信エラーとして扱わない
+    showDone(post);
   });
 
   function showDone(post) {
@@ -875,9 +926,9 @@ input:focus, select:focus, textarea:focus {
       <div class="done">
         <div class="done__mark" aria-hidden="true">🌟</div>
         <h2>投稿しました！</h2>
-        <p>${escapeAttr(post.authorName)} として公開されました。</p>
+        <p>${escapeAttr(post?.authorName ?? "名無しさん")} として公開されました。</p>
         <div class="done__actions">
-          <a class="primary" href="../detail/index.html?id=${encodeURIComponent(post.id)}">投稿を見る</a>
+          <a class="primary" href="../detail/index.html?id=${encodeURIComponent(post?.id ?? "")}">投稿を見る</a>
           <a href="../index.html">トップにもどる</a>
           <button type="button" onclick="location.reload()">つづけて投稿する</button>
         </div>
