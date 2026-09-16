@@ -447,6 +447,14 @@ button, select, input { font-family: inherit; }
             <option value="all">すべてのジャンル</option>
           </select>
         </div>
+
+        <div class="genre-filter">
+          <label for="sort-select">並び替え</label>
+          <select id="sort-select">
+            <option value="new">新着順</option>
+            <option value="popular">いいね順</option>
+          </select>
+        </div>
       </div>
     </div>
   </div>
@@ -495,11 +503,12 @@ async function fetchGenres() {
   }
 }
 
-async function fetchPosts({ keyword, maxBudget, genre }) {
+async function fetchPosts({ keyword, maxBudget, genre, sort }) {
   const params = new URLSearchParams({ limit: "100" });
   if (keyword.trim()) params.set("q", keyword.trim());
   if (genre !== "all") params.set("genre", genre);
   if (Number.isFinite(maxBudget)) params.set("budgetMax", String(maxBudget));
+  if (sort && sort !== "new") params.set("sort", sort);
 
   const res = await fetch(`${API_BASE}/api/posts?${params.toString()}`);
   if (!res.ok) throw new Error(`failed to fetch posts: ${res.status}`);
@@ -629,7 +638,7 @@ function renderPostList(posts, likedIds) {
    INIT
    ============================================================ */
 document.addEventListener("DOMContentLoaded", () => {
-  const state = { keyword: "", maxBudget: Infinity, genre: "all" };
+  const state = { keyword: "", maxBudget: Infinity, genre: "all", sort: "new" };
   const likedIds = getLikedIds();
 
   // いいねボタンはカードが再描画されるので、親要素への委任で1つのリスナーだけ使う
@@ -663,6 +672,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const keywordInput = document.getElementById("keyword-input");
   const chipButtons = Array.from(document.querySelectorAll(".chip"));
   const genreSelect = document.getElementById("genre-select");
+  const sortSelect = document.getElementById("sort-select");
   const resetButton = document.getElementById("reset-filters");
   const emptyState = document.getElementById("empty-state");
   const fetchError = document.getElementById("fetch-error");
@@ -716,15 +726,22 @@ document.addEventListener("DOMContentLoaded", () => {
     applyFilters();
   });
 
+  sortSelect.addEventListener("change", (event) => {
+    state.sort = event.target.value;
+    applyFilters();
+  });
+
   document.getElementById("retry-btn").addEventListener("click", applyFilters);
 
   resetButton.addEventListener("click", () => {
     state.keyword = "";
     state.maxBudget = Infinity;
     state.genre = "all";
+    state.sort = "new";
 
     keywordInput.value = "";
     genreSelect.value = "all";
+    sortSelect.value = "new";
     chipButtons.forEach((b) => {
       const isAll = b.dataset.maxBudget === "all";
       b.classList.toggle("is-active", isAll);
