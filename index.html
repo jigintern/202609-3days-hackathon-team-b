@@ -123,6 +123,12 @@ button, select, input { font-family: inherit; }
 .nav-link:focus-visible {
   color: var(--ink);
 }
+.nav-user {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
 
 /* ============================================================
    LAYOUT: HERO
@@ -401,6 +407,7 @@ button, select, input { font-family: inherit; }
   <div class="container">
     <a class="site-logo" href="index.html">オシピ！</a>
     <nav class="nav-links">
+      <span class="nav-user" id="navUser" hidden></span>
       <a class="nav-link" href="search/index.html">予算で探す</a>
       <a class="btn-primary" href="post/index.html">投稿する</a>
     </nav>
@@ -528,14 +535,30 @@ function saveLikedIds(likedIds) {
 /* ============================================================
    ログイン状態（認証がないためlocalStorageのモック）
    ============================================================ */
-const CURRENT_USER_KEY = "oshipi:currentUser";
-function isLoggedIn() {
-  try {
-    return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) ?? "null") !== null;
-  } catch {
-    return false;
+// ログイン状態はサーバーのセッション（HttpOnly Cookie）が持っているので /api/auth/me で確認する。
+// Cookie は別オリジンには渡らないため、ここだけは同一オリジンの相対パスを使う。
+let sessionPromise = null;
+function fetchCurrentUser() {
+  if (!sessionPromise) {
+    sessionPromise = fetch("/api/auth/me", { credentials: "include" })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => data?.user ?? null)
+      .catch(() => null);
   }
+  return sessionPromise;
 }
+async function isLoggedIn() {
+  return (await fetchCurrentUser()) !== null;
+}
+
+// ヘッダーにログイン中の表示名を出す（未ログインのときは出さない）
+fetchCurrentUser().then(user => {
+  const el = document.getElementById("navUser");
+  if (!el || !user) return;
+  el.textContent = user.displayName;
+  el.hidden = false;
+});
+
 function showLoginRequiredMessage(anchorEl) {
   const existing = anchorEl.parentElement.querySelector(".login-required-msg");
   if (existing) existing.remove();
@@ -695,7 +718,7 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!isLoggedIn()) {
+    if (!(await isLoggedIn())) {
       showLoginRequiredMessage(btn);
       return;
     }

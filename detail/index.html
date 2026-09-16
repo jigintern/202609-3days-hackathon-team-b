@@ -76,6 +76,12 @@
     white-space: nowrap;
   }
   .nav-links a:hover { color: #030303; }
+  .nav-user {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #030303;
+    white-space: nowrap;
+  }
   .nav-links a.btn-primary {
     display: inline-block;
     background: var(--accent);
@@ -500,6 +506,7 @@
       オシピ！
     </a>
     <nav class="nav-links">
+      <span class="nav-user" id="navUser" hidden></span>
       <a href="../index.html">トップ</a>
       <a href="../search/index.html">予算で探す</a>
       <a class="btn-primary" href="../post/index.html">投稿する</a>
@@ -599,6 +606,7 @@
   const API_BASE = "https://intern-b.tekitou.app";
   const postId = new URLSearchParams(location.search).get("id");
   let post = null;
+  let currentUser = null;
   let reports = [];
   let activeImageIndex = 0;
 
@@ -621,14 +629,29 @@
   const likedPosts = loadLikedSet(LIKED_POSTS_KEY);
   const likedReports = loadLikedSet(LIKED_REPORTS_KEY);
 
-  const CURRENT_USER_KEY = "oshipi:currentUser";
-  function isLoggedIn() {
-    try {
-      return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) ?? "null") !== null;
-    } catch {
-      return false;
+  // ログイン状態はサーバーのセッション（HttpOnly Cookie）が持っているので /api/auth/me で確認する。
+  let sessionPromise = null;
+  function fetchCurrentUser() {
+    if (!sessionPromise) {
+      sessionPromise = fetch(`${API_BASE}/api/auth/me`, { credentials: "include" })
+        .then(res => (res.ok ? res.json() : null))
+        .then(data => data?.user ?? null)
+        .catch(() => null);
     }
+    return sessionPromise;
   }
+  async function isLoggedIn() {
+    return (await fetchCurrentUser()) !== null;
+  }
+
+  // ヘッダーにログイン中の表示名を出す（未ログインのときは出さない）
+  fetchCurrentUser().then(user => {
+    const el = document.getElementById("navUser");
+    if (!el || !user) return;
+    el.textContent = user.displayName;
+    el.hidden = false;
+  });
+
   function showLoginRequiredMessage(anchorEl) {
     const existing = anchorEl.parentElement.querySelector(".login-required-msg");
     if (existing) existing.remove();
@@ -668,16 +691,16 @@
     return /^https?:\/\//.test(url) ? url : `${API_BASE}${url}`;
   }
 
-  // 認証・投稿者ひも付け未実装のため、現状は常に編集可能扱いのモック。
-  // 認証実装後は post.authorId === currentUserId 等に差し替える。
+  // 編集できるのは自分の投稿だけ。currentUser は init で /api/auth/me から取得する。
   function canEditPost(targetPost) {
-    return true;
+    return Boolean(currentUser && targetPost.userId && targetPost.userId === currentUser.id);
   }
 
   async function uploadImage(file) {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${API_BASE}/api/images`, { method: "POST", body: formData });
+    // 書き込み系はログイン必須。本番では API_BASE が同一オリジンなのでセッション Cookie が載る。
+    const res = await fetch(`${API_BASE}/api/images`, { method: "POST", body: formData, credentials: "include" });
     if (!res.ok) throw new Error("画像のアップロードに失敗しました");
     return res.json();
   }
@@ -762,7 +785,7 @@
   // ------- Events -------
   document.getElementById("likeBtn").addEventListener("click", async () => {
     if (!post) return;
-    if (!isLoggedIn()) {
+    if (!(await isLoggedIn())) {
       showLoginRequiredMessage(document.getElementById("likeBtn"));
       return;
     }
@@ -809,7 +832,7 @@
   document.getElementById("reportList").addEventListener("click", async (e) => {
     const btn = e.target.closest(".report-like-btn");
     if (!btn) return;
-    if (!isLoggedIn()) {
+    if (!(await isLoggedIn())) {
       showLoginRequiredMessage(btn);
       return;
     }
@@ -852,7 +875,7 @@
   submitBtn.addEventListener("click", async () => {
     const text = reportInput.value.trim();
     if (!text || !postId) return;
-    if (!isLoggedIn()) {
+    if (!(await isLoggedIn())) {
       showLoginRequiredMessage(submitBtn);
       return;
     }
@@ -865,9 +888,11 @@
         const uploaded = await uploadImage(attachedFile);
         imageUrl = uploaded.url;
       }
+      // 投稿者名はサーバー側でログイン中のユーザーの表示名が入るので、ここでは送らない。
       const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(postId)}/reports`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ body: text, imageUrl }),
       });
       if (!res.ok) throw new Error("コメントの投稿に失敗しました");
@@ -900,6 +925,8 @@
         return;
       }
       post = await res.json();
+      // 編集ボタンの出し分けに使うので、描画前にログインユーザーを確定させておく
+      currentUser = await fetchCurrentUser();
       renderGallery();
       renderPost();
 

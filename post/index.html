@@ -80,6 +80,17 @@ button, select, input, textarea { font-family: inherit; }
   text-decoration: none;
 }
 /* 高さを他ページのヘッダー（.btn-primary）と揃える */
+.nav-user {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
 .header-cancel {
   display: inline-block;
   border: 1px solid var(--line);
@@ -447,7 +458,10 @@ input:focus, select:focus, textarea:focus {
 <header class="site-header">
   <div class="container">
     <a class="site-logo" href="../index.html">オシピ！</a>
-    <a class="header-cancel" href="../index.html">やめる</a>
+    <nav class="nav-links">
+      <span class="nav-user" id="navUser" hidden></span>
+      <a class="header-cancel" href="../index.html">やめる</a>
+    </nav>
   </div>
 </header>
 
@@ -590,14 +604,30 @@ input:focus, select:focus, textarea:focus {
   const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
   // ------- ログイン状態（認証がないためlocalStorageのモック） -------
-  const CURRENT_USER_KEY = "oshipi:currentUser";
-  function isLoggedIn() {
-    try {
-      return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) ?? "null") !== null;
-    } catch {
-      return false;
+  // ログイン状態はサーバーのセッション（HttpOnly Cookie）が持っているので /api/auth/me で確認する。
+  // Cookie は別オリジンには渡らないため、ここだけは同一オリジンの相対パスを使う。
+  let sessionPromise = null;
+  function fetchCurrentUser() {
+    if (!sessionPromise) {
+      sessionPromise = fetch("/api/auth/me", { credentials: "include" })
+        .then(res => (res.ok ? res.json() : null))
+        .then(data => data?.user ?? null)
+        .catch(() => null);
     }
+    return sessionPromise;
   }
+  async function isLoggedIn() {
+    return (await fetchCurrentUser()) !== null;
+  }
+
+  // ヘッダーにログイン中の表示名を出す（未ログインのときは出さない）
+  fetchCurrentUser().then(user => {
+    const el = document.getElementById("navUser");
+    if (!el || !user) return;
+    el.textContent = user.displayName;
+    el.hidden = false;
+  });
+
 
   // ------- 状態 -------
   // ?id=xxx が付いていれば既存投稿の編集、なければ新規投稿
@@ -915,7 +945,7 @@ input:focus, select:focus, textarea:focus {
 
     const isEditing = state.mode === "editing";
     
-    if (!isLoggedIn()) {
+    if (!(await isLoggedIn())) {
       submitStatus.textContent = "ログインが必要です";
       submitStatus.style.color = "var(--danger)";
       return;
