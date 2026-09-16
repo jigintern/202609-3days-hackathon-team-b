@@ -120,3 +120,85 @@ function debounce(fn, delay) {
     timer = setTimeout(() => fn(...args), delay);
   };
 }
+
+/* ============================================================
+   ログイン誘導ダイアログ
+   書き込み系（いいね・コメント・投稿など）は API 側でログイン必須なので、
+   未ログインのまま操作されたらここでログイン画面へ誘導する。
+   ログイン画面のパスは画面ごとに階層が違うため引数で受け取る。
+   ============================================================ */
+let loginDialogEl = null;
+
+function buildLoginDialog() {
+  const style = document.createElement("style");
+  style.textContent = `
+    .login-dialog {
+      border: 1px solid var(--line, #E3E3E1);
+      border-radius: 16px;
+      padding: 24px 20px 20px;
+      max-width: 320px;
+      width: calc(100% - 32px);
+      background: var(--surface, #FFFFFF);
+      color: var(--ink, #222222);
+      font-family: inherit;
+    }
+    .login-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+    .login-dialog__title {
+      margin: 0 0 8px;
+      font-family: var(--font-display, inherit);
+      font-size: 1.05rem;
+    }
+    .login-dialog__text {
+      margin: 0 0 20px;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      color: var(--ink-muted, #6B6B6B);
+    }
+    .login-dialog__actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .login-dialog__actions button {
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .login-dialog__cancel {
+      border: 1px solid var(--line, #E3E3E1);
+      background: transparent;
+      color: inherit;
+    }
+    .login-dialog__ok {
+      border: none;
+      background: var(--accent, #FFEF6C);
+      color: var(--ink, #222222);
+      font-weight: 700;
+    }
+  `;
+  document.head.append(style);
+
+  const dialog = document.createElement("dialog");
+  dialog.className = "login-dialog";
+  dialog.innerHTML = `
+    <h2 class="login-dialog__title">ログインが必要です</h2>
+    <p class="login-dialog__text"></p>
+    <div class="login-dialog__actions">
+      <button type="button" class="login-dialog__cancel">閉じる</button>
+      <button type="button" class="login-dialog__ok">ログインする</button>
+    </div>
+  `;
+  dialog.querySelector(".login-dialog__cancel").addEventListener("click", () => dialog.close());
+  document.body.append(dialog);
+  return dialog;
+}
+
+/** 未ログイン時に出すダイアログ。「ログインする」でログイン画面へ遷移する。
+ *  loginUrl は呼び出し元のページから見たログイン画面への相対パス。 */
+function showLoginDialog(loginUrl, message = "この操作にはログインが必要です。ログイン画面へ移動しますか？") {
+  if (!loginDialogEl) loginDialogEl = buildLoginDialog();
+  loginDialogEl.querySelector(".login-dialog__text").textContent = message;
+
+  const ok = loginDialogEl.querySelector(".login-dialog__ok");
+  // 連打で複数回リスナーが付かないよう、毎回差し替える
+  ok.onclick = () => { location.href = loginUrl; };
+
+  loginDialogEl.showModal();
+}

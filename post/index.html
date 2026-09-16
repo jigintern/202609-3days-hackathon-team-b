@@ -84,6 +84,7 @@ button, select, input, textarea { font-family: inherit; }
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--ink);
+  text-decoration: none;
   white-space: nowrap;
 }
 .nav-links {
@@ -451,6 +452,46 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--accent);
   font-weight: 700;
 }
+.login-dialog {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px 20px 20px;
+  max-width: 320px;
+  width: calc(100% - 32px);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+}
+.login-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+.login-dialog__title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+.login-dialog__text {
+  margin: 0 0 20px;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--ink-muted);
+}
+.login-dialog__actions { display: flex; gap: 8px; justify-content: flex-end; }
+.login-dialog__actions button {
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.login-dialog__cancel {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+}
+.login-dialog__ok {
+  border: none;
+  background: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+}
 </style>
 </head>
 <body>
@@ -459,7 +500,7 @@ input:focus, select:focus, textarea:focus {
   <div class="container">
     <a class="site-logo" href="../index.html">オシピ！</a>
     <nav class="nav-links">
-      <span class="nav-user" id="navUser" hidden></span>
+      <a class="nav-user" id="navUser" href="../login/index.html" hidden></a>
       <a class="header-cancel" href="../index.html">やめる</a>
     </nav>
   </div>
@@ -575,6 +616,15 @@ input:focus, select:focus, textarea:focus {
   </div>
 </div>
 
+<dialog class="login-dialog" id="loginDialog">
+  <h2 class="login-dialog__title">ログインが必要です</h2>
+  <p class="login-dialog__text">投稿するにはログインが必要です。ログイン画面へ移動しますか？</p>
+  <div class="login-dialog__actions">
+    <button type="button" class="login-dialog__cancel" id="loginDialogCancel">閉じる</button>
+    <button type="button" class="login-dialog__ok" id="loginDialogOk">ログインする</button>
+  </div>
+</dialog>
+
 <script>
   // ------- 定数 -------
   // ジャンルと都道府県は /api/genres と /api/prefectures から取得する。
@@ -621,6 +671,16 @@ input:focus, select:focus, textarea:focus {
   }
   async function isLoggedIn() {
     return (await fetchCurrentUser()) !== null;
+  }
+
+  // 未ログインのまま投稿しようとしたときの誘導ダイアログ
+  const loginDialog = document.getElementById("loginDialog");
+  document.getElementById("loginDialogCancel").addEventListener("click", () => loginDialog.close());
+  document.getElementById("loginDialogOk").addEventListener("click", () => {
+    location.href = "../login/index.html";
+  });
+  function showLoginDialog() {
+    loginDialog.showModal();
   }
 
   // ヘッダーにログイン中の表示名を出す（未ログインのときは出さない）
@@ -949,8 +1009,7 @@ input:focus, select:focus, textarea:focus {
     const isEditing = state.mode === "editing";
     
     if (!(await isLoggedIn())) {
-      submitStatus.textContent = "ログインが必要です";
-      submitStatus.style.color = "var(--danger)";
+      showLoginDialog();
       return;
     }
 

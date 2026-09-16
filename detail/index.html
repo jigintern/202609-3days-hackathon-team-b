@@ -80,6 +80,7 @@
     font-size: 0.85rem;
     font-weight: 700;
     color: #030303;
+    text-decoration: none;
     white-space: nowrap;
   }
   .nav-links a.btn-primary {
@@ -439,14 +440,6 @@
   }
   .report-like-btn.is-liked { color: var(--danger); font-weight: 700; }
 
-  .login-required-msg {
-    display: inline-block;
-    margin-left: 8px;
-    font-size: 12px;
-    color: var(--danger);
-    white-space: nowrap;
-  }
-
   .report-form {
     margin-top: 14px;
     display: flex;
@@ -510,10 +503,10 @@
       オシピ！
     </a>
     <nav class="nav-links">
-      <span class="nav-user" id="navUser" hidden></span>
+      <a class="nav-user" id="navUser" href="../login/index.html" hidden></a>
       <a href="../index.html">トップ</a>
       <a href="../search/index.html">予算で探す</a>
-      <a class="btn-primary" href="../post/index.html">投稿する</a>
+      <a class="btn-primary" id="navPostBtn" href="../post/index.html">投稿する</a>
     </nav>
   </div>
 </header>
@@ -632,6 +625,16 @@
     return (await fetchCurrentUser()) !== null;
   }
 
+  // ヘッダーの「投稿する」は未ログインならダイアログで止める
+  document.getElementById("navPostBtn").addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (await isLoggedIn()) {
+      location.href = e.currentTarget.href;
+      return;
+    }
+    showLoginDialog("../login/index.html", "投稿するにはログインが必要です。ログイン画面へ移動しますか？");
+  });
+
   // ヘッダーにログイン中の表示名を出す（未ログインのときは出さない）
   fetchCurrentUser().then(user => {
     const el = document.getElementById("navUser");
@@ -639,17 +642,6 @@
     el.textContent = user.displayName;
     el.hidden = false;
   });
-
-  function showLoginRequiredMessage(anchorEl) {
-    const existing = anchorEl.parentElement.querySelector(".login-required-msg");
-    if (existing) existing.remove();
-    const msg = document.createElement("span");
-    msg.className = "login-required-msg";
-    msg.setAttribute("role", "alert");
-    msg.textContent = "ログインが必要です";
-    anchorEl.insertAdjacentElement("afterend", msg);
-    setTimeout(() => msg.remove(), 2500);
-  }
 
   // 編集できるのは自分の投稿だけ。currentUser は init で /api/auth/me から取得する。
   function canEditPost(targetPost) {
@@ -743,7 +735,7 @@
   document.getElementById("likeBtn").addEventListener("click", async () => {
     if (!post) return;
     if (!(await isLoggedIn())) {
-      showLoginRequiredMessage(document.getElementById("likeBtn"));
+      showLoginDialog("../login/index.html");
       return;
     }
     const nextLiked = !likedPosts.has(post.id);
@@ -785,7 +777,7 @@
     const btn = e.target.closest(".report-like-btn");
     if (!btn) return;
     if (!(await isLoggedIn())) {
-      showLoginRequiredMessage(btn);
+      showLoginDialog("../login/index.html");
       return;
     }
     const id = btn.dataset.id;
@@ -824,7 +816,7 @@
     const text = reportInput.value.trim();
     if (!text || !postId) return;
     if (!(await isLoggedIn())) {
-      showLoginRequiredMessage(submitBtn);
+      showLoginDialog("../login/index.html", "コメントの投稿にはログインが必要です。ログイン画面へ移動しますか？");
       return;
     }
 
