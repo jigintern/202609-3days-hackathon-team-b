@@ -597,7 +597,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
      ============================================================ */
   const LIKED_STORAGE_KEY = "oshipi:likedPostIds";
 
-  function loadLikedPostIds() {
+  function getLikedIds() {
     try {
       return new Set(JSON.parse(localStorage.getItem(LIKED_STORAGE_KEY) ?? "[]"));
     } catch {
@@ -605,15 +605,33 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     }
   }
 
-  function saveLikedPostIds(set) {
+  function saveLikedIds(likedIds) {
     try {
-      localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify([...set]));
+      localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify([...likedIds]));
     } catch {
       /* プライベートブラウジング等でlocalStorageが使えない場合は諦める */
     }
   }
 
-  const likedPostIds = loadLikedPostIds();
+  /** POST/DELETE /api/posts/:id/like を叩き、更新後のいいね数を返す */
+  async function setPostLike(postId, liked) {
+    const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(postId)}/like`, {
+      method: liked ? "POST" : "DELETE",
+    });
+    if (!res.ok) throw new Error(`failed to update like: ${res.status}`);
+    const { likeCount } = await res.json();
+    return likeCount;
+  }
+
+  /** いいねボタンの見た目（❤️/🤍・件数）はここだけで組み立てる */
+  function updateLikeButton(btn, liked, likeCount) {
+    btn.classList.toggle("is-liked", liked);
+    btn.setAttribute("aria-pressed", String(liked));
+    btn.setAttribute("aria-label", `いいね ${likeCount}件`);
+    btn.innerHTML = `<span aria-hidden="true">${liked ? "❤️" : "🤍"}</span>${likeCount}`;
+  }
+
+  const likedIds = getLikedIds();
 
   /* ============================================================
      STATE
@@ -846,7 +864,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     ].filter(Boolean);
 
     const thumbImage = post.images && post.images[0];
-    const liked = likedPostIds.has(post.id);
+    const liked = likedIds.has(post.id);
 
     card.insertAdjacentHTML("beforeend", `
       <div class="card__media ${thumbImage ? "" : placeholderClass(index)}">
@@ -862,12 +880,12 @@ input:focus { outline: none; border-color: var(--accent-dark); }
         <p class="card__desc">${escapeHtml(post.tip || post.body)}</p>
         <div class="card__footer">
           <span>${escapeHtml(post.authorName)} ・ ${formatDate(post.createdAt)}</span>
-          <button type="button" class="card__like-btn${liked ? " is-liked" : ""}" data-id="${post.id}" aria-pressed="${liked}" aria-label="いいね ${post.likeCount}件">
-            <span aria-hidden="true">${liked ? "❤️" : "🤍"}</span>${post.likeCount}
-          </button>
+          <button type="button" class="card__like-btn" data-id="${post.id}"></button>
         </div>
       </div>
     `);
+    // 初期表示もクリック後の更新も同じ updateLikeButton を通す
+    updateLikeButton(card.querySelector(".card__like-btn"), liked, post.likeCount);
     return card;
   }
 
@@ -956,24 +974,14 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       e.stopPropagation();
 
       const postId = btn.dataset.id;
-      const wasLiked = likedPostIds.has(postId);
-      const method = wasLiked ? "DELETE" : "POST";
+      const nextLiked = !likedIds.has(postId);
 
       btn.disabled = true;
       try {
-        const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(postId)}/like`, { method });
-        if (!res.ok) throw new Error(`いいねに失敗しました (${res.status})`);
-        const data = await res.json();
-
-        if (wasLiked) likedPostIds.delete(postId);
-        else likedPostIds.add(postId);
-        saveLikedPostIds(likedPostIds);
-
-        const nowLiked = likedPostIds.has(postId);
-        btn.classList.toggle("is-liked", nowLiked);
-        btn.setAttribute("aria-pressed", String(nowLiked));
-        btn.setAttribute("aria-label", `いいね ${data.likeCount}件`);
-        btn.innerHTML = `<span aria-hidden="true">${nowLiked ? "❤️" : "🤍"}</span>${data.likeCount}`;
+        const likeCount = await setPostLike(postId, nextLiked);
+        nextLiked ? likedIds.add(postId) : likedIds.delete(postId);
+        saveLikedIds(likedIds);
+        updateLikeButton(btn, nextLiked, likeCount);
       } catch (err) {
         console.error(err);
       } finally {
