@@ -21,9 +21,15 @@ cd 202609-3days-hackathon-team-b
 ローカルで動かす場合（Cloudflare Workers + D1 + R2 がローカルエミュレートされます）。
 
 ```bash
-npx wrangler d1 migrations apply hackathon-team-b --local  # 初回・マイグレーション追加時
-npx wrangler dev
+npm run migrate  # 初回・マイグレーション追加時
+npm run dev      # ポートを変えたいときは npm run dev -- --port 3000
 ```
+
+`npx wrangler dev` を直接叩くと、**リロードが無限ループします**。`wrangler.jsonc` の `assets.directory` がリポジトリルート（`./`）なので、wrangler 自身がバンドルを書き出す `.wrangler/tmp` をアセットの変更として検知してしまうためです（`.assetsignore` は配信対象から外すだけで、ファイル監視には効きません）。
+
+`.wrangler` は「設定ファイルのあるディレクトリ」に作られるので、`npm run dev` は `scripts/dev-config.mjs` で設定ファイルだけを `~/.cache/wrangler-dev-team-b/` に書き出し、それを `-c` で渡しています。これで `.wrangler` がリポジトリの外に出るためループしません。ホットリロードは通常どおり効きます。
+
+ローカルの D1 / R2 のデータも `~/.cache/wrangler-dev-team-b/.wrangler/state` に入ります。作り直したいときはこのディレクトリを消して `npm run migrate` をやり直してください。
 
 ## ディレクトリ構成
 
