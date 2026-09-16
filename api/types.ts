@@ -10,7 +10,7 @@ export interface Env {
 // ------------------------------------------------------------
 // ランダムな表示名
 // ------------------------------------------------------------
-// ログイン機能がないため、投稿者名が未指定のときはここから組み合わせて作る。
+// ユーザー登録で表示名が未指定のときはここから組み合わせて作る。
 
 const NAME_ADJECTIVES = [
   "ゆかいな", "しずかな", "きまぐれな", "ねむたい", "げんきな", "ひかえめな",
@@ -54,6 +54,27 @@ export const PREFECTURES = [
   "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
 ] as const;
 
+// ------------------------------------------------------------
+// ユーザー / セッション
+// ------------------------------------------------------------
+
+/** users テーブルの行。password_hash を含むので API には出さない */
+export interface UserRow {
+  id: string;
+  login_id: string;
+  display_name: string;
+  password_hash: string;
+  created_at: string;
+}
+
+/** API が返すユーザー。パスワード関連は含めない */
+export interface User {
+  id: string;
+  loginId: string;
+  displayName: string;
+  createdAt: string;
+}
+
 /** posts テーブルの行 */
 export interface PostRow {
   id: string;
@@ -65,6 +86,7 @@ export interface PostRow {
   duration_min: number | null;
   budget: number | null;
   author_name: string;
+  user_id: string | null;
   images: string;     // JSON 配列
   steps: string;      // JSON 配列
   materials: string;  // JSON 配列
@@ -87,6 +109,7 @@ export interface Post {
   durationMin: number | null;
   budget: number | null;
   authorName: string;
+  userId: string | null;
   images: string[];
   steps: string[];
   materials: string[];
@@ -102,6 +125,7 @@ export interface ReportRow {
   id: string;
   post_id: string;
   author_name: string;
+  user_id: string | null;
   body: string;
   image_url: string | null;
   like_count: number;
@@ -113,6 +137,7 @@ export interface Report {
   id: string;
   postId: string;
   authorName: string;
+  userId: string | null;
   body: string;
   imageUrl: string | null;
   likeCount: number;

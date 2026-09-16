@@ -1,6 +1,6 @@
 // D1 へのアクセスをまとめた層。SQL はこのファイルにだけ書く。
 
-import type { Env, Post, PostRow, Report, ReportRow } from "./types";
+import type { Env, Post, PostRow, Report, ReportRow, User, UserRow } from "./types";
 import { GENRES } from "./types";
 
 // ------------------------------------------------------------
@@ -32,6 +32,7 @@ export function toPost(row: PostRow): Post {
     durationMin: row.duration_min,
     budget: row.budget,
     authorName: row.author_name,
+    userId: row.user_id ?? null,
     images: parseJsonArray(row.images),
     steps: parseJsonArray(row.steps),
     materials: parseJsonArray(row.materials),
@@ -43,16 +44,87 @@ export function toPost(row: PostRow): Post {
   };
 }
 
+export function toUser(row: UserRow): User {
+  return {
+    id: row.id,
+    loginId: row.login_id,
+    displayName: row.display_name,
+    createdAt: row.created_at,
+  };
+}
+
 export function toReport(row: ReportRow): Report {
   return {
     id: row.id,
     postId: row.post_id,
     authorName: row.author_name,
+    userId: row.user_id ?? null,
     body: row.body,
     imageUrl: row.image_url,
     likeCount: Number(row.like_count ?? 0),
     createdAt: row.created_at,
   };
+}
+
+// ------------------------------------------------------------
+// ユーザー / セッション
+// ------------------------------------------------------------
+
+export interface UserInput {
+  loginId: string;
+  displayName: string;
+  passwordHash: string;
+}
+
+export async function createUser(env: Env, input: UserInput): Promise<string> {
+  const id = crypto.randomUUID();
+  await env.DB.prepare(
+    `INSERT INTO users (id, login_id, display_name, password_hash, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  )
+    .bind(id, input.loginId, input.displayName, input.passwordHash, new Date().toISOString())
+    .run();
+  return id;
+}
+
+/** ログイン照合用。password_hash を含む行をそのまま返す */
+export async function findUserByLoginId(env: Env, loginId: string): Promise<UserRow | null> {
+  const row = await env.DB.prepare(`SELECT * FROM users WHERE login_id = ?`)
+    .bind(loginId)
+    .first();
+  return (row as UserRow) ?? null;
+}
+
+export async function findUserById(env: Env, id: string): Promise<User | null> {
+  const row = await env.DB.prepare(`SELECT * FROM users WHERE id = ?`).bind(id).first();
+  return row ? toUser(row as UserRow) : null;
+}
+
+export async function createSession(
+  env: Env,
+  input: { tokenHash: string; userId: string; expiresAt: string },
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`,
+  )
+    .bind(input.tokenHash, input.userId, new Date().toISOString(), input.expiresAt)
+    .run();
+}
+
+/** 有効なセッションに紐づくユーザーを返す。期限切れなら null */
+export async function findSessionUser(env: Env, tokenHash: string): Promise<User | null> {
+  const row = await env.DB.prepare(
+    `SELECT u.* FROM sessions s
+     JOIN users u ON u.id = s.user_id
+     WHERE s.token_hash = ? AND s.expires_at > ?`,
+  )
+    .bind(tokenHash, new Date().toISOString())
+    .first();
+  return row ? toUser(row as UserRow) : null;
+}
+
+export async function deleteSession(env: Env, tokenHash: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM sessions WHERE token_hash = ?`).bind(tokenHash).run();
 }
 
 // ------------------------------------------------------------
@@ -167,6 +239,7 @@ export interface PostInput {
   durationMin: number | null;
   budget: number | null;
   authorName: string;
+  userId: string | null;
   images: string[];
   steps: string[];
   materials: string[];
@@ -180,8 +253,8 @@ export async function createPost(env: Env, input: PostInput): Promise<string> {
   await env.DB.prepare(
     `INSERT INTO posts (
        id, title, body, tip, genre, prefecture, duration_min, budget,
-       author_name, images, steps, materials, tags, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       author_name, user_id, images, steps, materials, tags, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -193,6 +266,7 @@ export async function createPost(env: Env, input: PostInput): Promise<string> {
       input.durationMin,
       input.budget,
       input.authorName,
+      input.userId,
       JSON.stringify(input.images),
       JSON.stringify(input.steps),
       JSON.stringify(input.materials),
@@ -211,7 +285,8 @@ export async function updatePost(
   id: string,
   patch: Partial<PostInput>,
 ): Promise<boolean> {
-  const columns: Record<keyof PostInput, string> = {
+  // user_id は所有者なので更新対象から外す
+  const columns: Record<Exclude<keyof PostInput, "userId">, string> = {
     title: "title",
     body: "body",
     tip: "tip",
@@ -229,7 +304,8 @@ export async function updatePost(
   const sets: string[] = [];
   const params: unknown[] = [];
 
-  for (const [key, column] of Object.entries(columns) as [keyof PostInput, string][]) {
+  type UpdatableKey = Exclude<keyof PostInput, "userId">;
+  for (const [key, column] of Object.entries(columns) as [UpdatableKey, string][]) {
     if (!(key in patch)) continue;
     const value = patch[key];
     sets.push(`${column} = ?`);
@@ -315,6 +391,7 @@ export async function getReport(env: Env, id: string): Promise<Report | null> {
 export interface ReportInput {
   postId: string;
   authorName: string;
+  userId: string | null;
   body: string;
   imageUrl: string | null;
 }
@@ -322,10 +399,18 @@ export interface ReportInput {
 export async function createReport(env: Env, input: ReportInput): Promise<string> {
   const id = crypto.randomUUID();
   await env.DB.prepare(
-    `INSERT INTO reports (id, post_id, author_name, body, image_url, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO reports (id, post_id, author_name, user_id, body, image_url, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, input.postId, input.authorName, input.body, input.imageUrl, new Date().toISOString())
+    .bind(
+      id,
+      input.postId,
+      input.authorName,
+      input.userId,
+      input.body,
+      input.imageUrl,
+      new Date().toISOString(),
+    )
     .run();
   return id;
 }
