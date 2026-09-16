@@ -338,8 +338,9 @@
     color: var(--text);
     transition: background .15s, border-color .15s;
   }
-  .like-btn .heart { font-size: 16px; }
-  .like-btn.liked {
+  /* ハートの絵文字は updateLikeButton が <span> で出力する */
+  .like-btn span { font-size: 16px; }
+  .like-btn.is-liked {
     background: var(--accent);
     border-color: var(--accent-dark);
   }
@@ -427,7 +428,7 @@
     gap: 3px;
     padding: 4px;
   }
-  .report-like-btn.liked { color: var(--danger); font-weight: 700; }
+  .report-like-btn.is-liked { color: var(--danger); font-weight: 700; }
 
   .login-required-msg {
     display: inline-block;
@@ -567,10 +568,8 @@
     </div>
 
     <div class="card action-card">
-      <button class="like-btn" id="likeBtn">
-        <span class="heart">🤍</span>
-        <span id="likeCount"></span>
-      </button>
+      <!-- 中身（ハートと件数）は updateLikeButton が描画する -->
+      <button class="like-btn" id="likeBtn"></button>
       <button class="share-btn" id="shareBtn">📤 共有する</button>
     </div>
 
@@ -594,32 +593,18 @@
   </section>
 </main>
 
+<script src="../shared/common.js"></script>
 <script>
   // ------- API state -------
-  const API_BASE = "https://intern-b.tekitou.app";
+  // API_BASE / escapeHtml / formatBudget / formatDuration / formatDate /
+  // resolveUrl / いいね関連の処理は shared/common.js にある
   const postId = new URLSearchParams(location.search).get("id");
   let post = null;
   let reports = [];
   let activeImageIndex = 0;
 
-  const LIKED_POSTS_KEY = "oshipi:likedPostIds";
-  const LIKED_REPORTS_KEY = "oshipi:likedReports";
-
-  function loadLikedSet(key) {
-    try {
-      return new Set(JSON.parse(localStorage.getItem(key) ?? "[]"));
-    } catch (err) {
-      return new Set();
-    }
-  }
-  function saveLikedSet(key, set) {
-    try {
-      localStorage.setItem(key, JSON.stringify([...set]));
-    } catch (err) { /* ストレージ利用不可時は何もしない */ }
-  }
-
-  const likedPosts = loadLikedSet(LIKED_POSTS_KEY);
-  const likedReports = loadLikedSet(LIKED_REPORTS_KEY);
+  const likedPosts = getLikedIds();
+  const likedReports = getLikedIds(LIKED_REPORTS_KEY);
 
   const CURRENT_USER_KEY = "oshipi:currentUser";
   function isLoggedIn() {
@@ -638,34 +623,6 @@
     msg.textContent = "ログインが必要です";
     anchorEl.insertAdjacentElement("afterend", msg);
     setTimeout(() => msg.remove(), 2500);
-  }
-
-  // ------- Helpers -------
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, ch => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[ch]));
-  }
-
-  function formatBudget(yen) {
-    if (yen === null || yen === undefined) return "未設定";
-    return yen === 0 ? "無料" : `¥${yen.toLocaleString("ja-JP")}`;
-  }
-  function formatDuration(minutes) {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h && m) return `${h}時間${m}分`;
-    if (h) return `${h}時間`;
-    return `${m}分`;
-  }
-  function formatDate(isoDate) {
-    const d = new Date(isoDate);
-    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
-  }
-
-  function resolveUrl(url) {
-    if (!url) return url;
-    return /^https?:\/\//.test(url) ? url : `${API_BASE}${url}`;
   }
 
   // 認証・投稿者ひも付け未実装のため、現状は常に編集可能扱いのモック。
@@ -730,18 +687,12 @@
   }
 
   function updateLikeUI() {
-    const btn = document.getElementById("likeBtn");
-    const isLiked = likedPosts.has(post.id);
-    btn.classList.toggle("liked", isLiked);
-    btn.querySelector(".heart").textContent = isLiked ? "❤️" : "🤍";
-    document.getElementById("likeCount").textContent = post.likeCount;
+    updateLikeButton(document.getElementById("likeBtn"), likedPosts.has(post.id), post.likeCount);
   }
 
   function renderReports() {
     document.getElementById("reportCount").textContent = `(${reports.length})`;
-    document.getElementById("reportList").innerHTML = reports.map(r => {
-      const isLiked = likedReports.has(r.id);
-      return `
+    document.getElementById("reportList").innerHTML = reports.map(r => `
       <div class="report-item">
         <div class="avatar">${escapeHtml(r.authorName.charAt(0))}</div>
         <div class="report-body">
@@ -749,14 +700,17 @@
           <div class="report-text">${escapeHtml(r.body)}</div>
           ${r.imageUrl ? `<img class="report-image" src="${resolveUrl(r.imageUrl)}" alt="コメント画像">` : ""}
           <div class="report-footer">
-            <button class="report-like-btn ${isLiked ? "liked" : ""}" data-id="${r.id}">
-              ${isLiked ? "❤️" : "🤍"} ${r.likeCount}
-            </button>
+            <button class="report-like-btn" data-id="${r.id}"></button>
           </div>
         </div>
       </div>
-    `;
-    }).join("");
+    `).join("");
+
+    // ボタンの中身は共通の updateLikeButton に任せる
+    reports.forEach((r) => {
+      const btn = document.querySelector(`.report-like-btn[data-id="${r.id}"]`);
+      if (btn) updateLikeButton(btn, likedReports.has(r.id), r.likeCount);
+    });
   }
 
   // ------- Events -------
@@ -766,16 +720,11 @@
       showLoginRequiredMessage(document.getElementById("likeBtn"));
       return;
     }
-    const isLiked = likedPosts.has(post.id);
+    const nextLiked = !likedPosts.has(post.id);
     try {
-      const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(post.id)}/like`, {
-        method: isLiked ? "DELETE" : "POST",
-      });
-      if (!res.ok) throw new Error("いいねに失敗しました");
-      const data = await res.json();
-      post.likeCount = data.likeCount;
-      if (isLiked) likedPosts.delete(post.id); else likedPosts.add(post.id);
-      saveLikedSet(LIKED_POSTS_KEY, likedPosts);
+      post.likeCount = await setPostLike(post.id, nextLiked);
+      if (nextLiked) likedPosts.add(post.id); else likedPosts.delete(post.id);
+      saveLikedIds(likedPosts);
       updateLikeUI();
     } catch (err) {
       console.error(err);
@@ -804,7 +753,7 @@
     location.href = `../post/index.html?id=${encodeURIComponent(post.id)}`;
   });
 
-  // いいねボタンはレポートを再描画するたびに増えるので、
+  // いいねボタンはコメントを再描画するたびに増えるので、
   // 親要素への委任で1つのリスナーだけを使う
   document.getElementById("reportList").addEventListener("click", async (e) => {
     const btn = e.target.closest(".report-like-btn");
@@ -814,18 +763,14 @@
       return;
     }
     const id = btn.dataset.id;
-    const isLiked = likedReports.has(id);
+    const nextLiked = !likedReports.has(id);
     try {
-      const res = await fetch(`${API_BASE}/api/reports/${encodeURIComponent(id)}/like`, {
-        method: isLiked ? "DELETE" : "POST",
-      });
-      if (!res.ok) throw new Error("いいねに失敗しました");
-      const data = await res.json();
+      const likeCount = await setReportLike(id, nextLiked);
       const r = reports.find(x => x.id === id);
-      if (r) r.likeCount = data.likeCount;
-      if (isLiked) likedReports.delete(id); else likedReports.add(id);
-      saveLikedSet(LIKED_REPORTS_KEY, likedReports);
-      renderReports();
+      if (r) r.likeCount = likeCount;
+      if (nextLiked) likedReports.add(id); else likedReports.delete(id);
+      saveLikedIds(likedReports, LIKED_REPORTS_KEY);
+      updateLikeButton(btn, nextLiked, likeCount);
     } catch (err) {
       console.error(err);
     }

@@ -608,62 +608,15 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   </section>
 </main>
 
+<script src="../shared/common.js"></script>
 <script>
-  /* ============================================================
-     API接続先（本番のオシピ！サーバーに直接リクエストする）
-     ============================================================ */
-  const API_BASE = "https://intern-b.tekitou.app";
-
-  /** 画像URLを絶対URLにする。/api/images/... のような相対パスは
-   *  本番オリジン以外から開くと解決先が変わってしまうため、常にAPI_BASEを基準にする */
-  function resolveUrl(url) {
-    if (!url) return url;
-    return /^https?:\/\//.test(url) ? url : `${API_BASE}${url}`;
-  }
+  /* API_BASE / resolveUrl / getLikedIds / saveLikedIds / setPostLike /
+     updateLikeButton などの共通処理は shared/common.js にある */
 
   /* ============================================================
      GENRES（GET /api/genres から取得。取得できるまでは空のまま）
      ============================================================ */
   let GENRES = [];
-
-  /* ============================================================
-     いいね済みの投稿ID（認証がないのでlocalStorageで自分の分だけ覚える）
-     ============================================================ */
-  const LIKED_STORAGE_KEY = "oshipi:likedPostIds";
-
-  function getLikedIds() {
-    try {
-      return new Set(JSON.parse(localStorage.getItem(LIKED_STORAGE_KEY) ?? "[]"));
-    } catch {
-      return new Set();
-    }
-  }
-
-  function saveLikedIds(likedIds) {
-    try {
-      localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify([...likedIds]));
-    } catch {
-      /* プライベートブラウジング等でlocalStorageが使えない場合は諦める */
-    }
-  }
-
-  /** POST/DELETE /api/posts/:id/like を叩き、更新後のいいね数を返す */
-  async function setPostLike(postId, liked) {
-    const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(postId)}/like`, {
-      method: liked ? "POST" : "DELETE",
-    });
-    if (!res.ok) throw new Error(`failed to update like: ${res.status}`);
-    const { likeCount } = await res.json();
-    return likeCount;
-  }
-
-  /** いいねボタンの見た目（❤️/🤍・件数）はここだけで組み立てる */
-  function updateLikeButton(btn, liked, likeCount) {
-    btn.classList.toggle("is-liked", liked);
-    btn.setAttribute("aria-pressed", String(liked));
-    btn.setAttribute("aria-label", `いいね ${likeCount}件`);
-    btn.innerHTML = `<span aria-hidden="true">${liked ? "❤️" : "🤍"}</span>${likeCount}`;
-  }
 
   const likedIds = getLikedIds();
 
@@ -704,45 +657,8 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   // 上書きしないよう、リクエストごとに連番を振って最新だけ反映する
   let requestSeq = 0;
 
-  /* ============================================================
-     HELPERS
-     ============================================================ */
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, (ch) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-    }[ch]));
-  }
-
-  function formatBudget(yen) {
-    if (yen === null || yen === undefined) return "予算未設定";
-    return yen === 0 ? "無料" : `¥${yen.toLocaleString("ja-JP")}`;
-  }
-
-  function formatDuration(min) {
-    if (min === null || min === undefined) return null;
-    const h = Math.floor(min / 60);
-    const m = min % 60;
-    if (h && m) return `${h}時間${m}分`;
-    if (h) return `${h}時間`;
-    return `${m}分`;
-  }
-
-  function formatDate(isoDate) {
-    const d = new Date(isoDate);
-    return `${d.getMonth() + 1}/${d.getDate()}`;
-  }
-
-  function placeholderClass(index) {
-    return `ph-${(index % 5) + 1}`;
-  }
-
-  function debounce(fn, wait) {
-    let timer = null;
-    return (...args) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), wait);
-    };
-  }
+  /* escapeHtml / formatBudget / formatDuration / formatDateShort /
+     placeholderClass / debounce は shared/common.js にある */
 
   /* ============================================================
      GENRE CHIPS
@@ -938,10 +854,9 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     );
     card.append(cardLink);
 
-    const durationText = formatDuration(post.durationMin);
     const metaParts = [
       post.prefecture || null,
-      durationText,
+      formatDuration(post.durationMin),
       post.steps.length > 0 ? `手順${post.steps.length}つ` : null,
     ].filter(Boolean);
 
@@ -961,7 +876,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
         <p class="card__meta">${escapeHtml(metaParts.join(" ・ "))}</p>
         <p class="card__desc">${escapeHtml(post.tip || post.body)}</p>
         <div class="card__footer">
-          <span>${escapeHtml(post.authorName)} ・ ${formatDate(post.createdAt)}</span>
+          <span>${escapeHtml(post.authorName)} ・ ${formatDateShort(post.createdAt)}</span>
           <button type="button" class="card__like-btn" data-id="${post.id}"></button>
         </div>
       </div>
