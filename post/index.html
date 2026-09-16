@@ -604,8 +604,18 @@ input:focus, select:focus, textarea:focus {
   // ------- 初期描画 -------
   function renderGenres() {
     genreChipsEl.innerHTML = GENRES.map(g =>
-      `<button type="button" class="chip" data-genre="${g.key}" aria-pressed="false">${g.label}</button>`
+      `<button type="button" class="chip" data-genre="${g.key}">${g.label}</button>`
     ).join("");
+    syncGenreChips();
+  }
+
+  // state.genre をチップの見た目に反映する。再描画後にも呼ぶ
+  function syncGenreChips() {
+    genreChipsEl.querySelectorAll(".chip").forEach(c => {
+      const active = c.dataset.genre === state.genre;
+      c.classList.toggle("is-active", active);
+      c.setAttribute("aria-pressed", String(active));
+    });
   }
 
   function renderPrefectures() {
@@ -634,8 +644,11 @@ input:focus, select:focus, textarea:focus {
         const { prefectures } = await prefsRes.json();
         if (Array.isArray(prefectures) && prefectures.length > 0) {
           PREFECTURES = prefectures;
+          // 作り直すと選択が消えるので、選んでいた値を復元する
+          const selected = prefectureEl.value;
           prefectureEl.innerHTML = '<option value="">選択しない</option>';
           renderPrefectures();
+          prefectureEl.value = selected;
         }
       }
     } catch (err) {
@@ -720,11 +733,7 @@ input:focus, select:focus, textarea:focus {
     if (!chip) return;
     const key = chip.dataset.genre;
     state.genre = state.genre === key ? "" : key;
-    genreChipsEl.querySelectorAll(".chip").forEach(c => {
-      const active = c.dataset.genre === state.genre;
-      c.classList.toggle("is-active", active);
-      c.setAttribute("aria-pressed", String(active));
-    });
+    syncGenreChips();
     validate();
   });
 
