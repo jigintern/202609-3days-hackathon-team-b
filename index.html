@@ -336,6 +336,16 @@ button, select, input { font-family: inherit; }
   color: var(--ink-muted);
   margin: 0;
 }
+/* 所要時間は探すときの判断材料になりやすいので、他のメタ情報より少しだけ強調する */
+.card__duration {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
 .card__desc {
   font-size: 0.9rem;
   margin: 0;
@@ -444,6 +454,14 @@ button, select, input { font-family: inherit; }
             <option value="all">すべてのジャンル</option>
           </select>
         </div>
+
+        <div class="genre-filter">
+          <label for="sort-select">並び替え</label>
+          <select id="sort-select">
+            <option value="new">新着順</option>
+            <option value="popular">いいね順</option>
+          </select>
+        </div>
       </div>
     </div>
   </div>
@@ -465,13 +483,12 @@ button, select, input { font-family: inherit; }
   </div>
 </main>
 
+<script src="shared/common.js"></script>
 <script>
 /* ============================================================
    API CLIENT
+   API_BASE や各種ヘルパーは shared/common.js にある
    ============================================================ */
-const API_BASE = "https://intern-b.tekitou.app/api";
-const LIKED_STORAGE_KEY = "oshipi:likedPostIds";
-
 const FALLBACK_GENRES = [
   { key: "pilgrimage", label: "聖地巡礼" },
   { key: "craft", label: "グッズ制作" },
@@ -483,7 +500,7 @@ const FALLBACK_GENRES = [
 
 async function fetchGenres() {
   try {
-    const res = await fetch(`${API_BASE}/genres`);
+    const res = await fetch(`${API_BASE}/api/genres`);
     if (!res.ok) throw new Error(`failed to fetch genres: ${res.status}`);
     const { genres } = await res.json();
     return genres;
@@ -493,43 +510,17 @@ async function fetchGenres() {
   }
 }
 
-async function fetchPosts({ keyword, maxBudget, genre }) {
+async function fetchPosts({ keyword, maxBudget, genre, sort }) {
   const params = new URLSearchParams({ limit: "100" });
   if (keyword.trim()) params.set("q", keyword.trim());
   if (genre !== "all") params.set("genre", genre);
   if (Number.isFinite(maxBudget)) params.set("budgetMax", String(maxBudget));
+  if (sort && sort !== "new") params.set("sort", sort);
 
-  const res = await fetch(`${API_BASE}/posts?${params.toString()}`);
+  const res = await fetch(`${API_BASE}/api/posts?${params.toString()}`);
   if (!res.ok) throw new Error(`failed to fetch posts: ${res.status}`);
   const { posts } = await res.json();
   return posts;
-}
-
-async function setPostLike(postId, liked) {
-  const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(postId)}/like`, {
-    method: liked ? "POST" : "DELETE",
-  });
-  if (!res.ok) throw new Error(`failed to update like: ${res.status}`);
-  const { likeCount } = await res.json();
-  return likeCount;
-}
-
-/* ============================================================
-   LIKED POSTS（ローカル記録・二重カウント防止）
-   ============================================================ */
-function getLikedIds() {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(LIKED_STORAGE_KEY) ?? "[]"));
-  } catch {
-    return new Set();
-  }
-}
-function saveLikedIds(likedIds) {
-  try {
-    localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify([...likedIds]));
-  } catch {
-    /* プライベートブラウジング等でlocalStorageが使えない場合は諦める */
-  }
 }
 
 /* ============================================================
@@ -571,41 +562,8 @@ function showLoginRequiredMessage(anchorEl) {
 }
 
 /* ============================================================
-   FORMAT HELPERS
-   ============================================================ */
-function formatBudget(yen) {
-  if (yen == null) return "予算未設定";
-  return yen === 0 ? "無料" : `¥${yen.toLocaleString("ja-JP")}`;
-}
-function formatDuration(minutes) {
-  if (minutes == null) return "時間未設定";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h && m) return `${h}時間${m}分`;
-  if (h) return `${h}時間`;
-  return `${m}分`;
-}
-function toAbsoluteApiUrl(path) {
-  return new URL(path, API_BASE).toString();
-}
-function formatDate(isoDate) {
-  const d = new Date(isoDate);
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-function placeholderClass(index) {
-  return `ph-${(index % 5) + 1}`;
-}
-
-/* ============================================================
    RENDER
    ============================================================ */
-function updateLikeButton(btn, liked, likeCount) {
-  btn.classList.toggle("is-liked", liked);
-  btn.setAttribute("aria-pressed", String(liked));
-  btn.setAttribute("aria-label", `いいね ${likeCount}件`);
-  btn.innerHTML = `<span aria-hidden="true">${liked ? "❤️" : "🤍"}</span>${likeCount}`;
-}
-
 function renderPostCard(post, index, likedIds) {
   // カード内にいいねボタン(<button>)を置くため、外枠は<a>ではなく<article>にし、
   // 遷移用のリンクは全面を覆う透明な<a>として別に重ねる(<a>はインタラクティブ要素を子孫に持てないため)
@@ -623,7 +581,7 @@ function renderPostCard(post, index, likedIds) {
 
   if (post.images && post.images.length > 0) {
     const img = document.createElement("img");
-    img.src = toAbsoluteApiUrl(post.images[0]);
+    img.src = resolveUrl(post.images[0]);
     img.alt = post.title;
     img.loading = "lazy";
     media.append(img);
@@ -648,9 +606,15 @@ function renderPostCard(post, index, likedIds) {
   title.className = "card__title";
   title.textContent = post.title;
 
+  // 所要時間は探すときの判断材料になりやすいので、他のメタ情報と分けて少し強調する
+  const duration = document.createElement("p");
+  duration.className = "card__duration";
+  duration.innerHTML = `<span aria-hidden="true">⏱</span>`;
+  duration.append(formatDuration(post.durationMin));
+
   const meta = document.createElement("p");
   meta.className = "card__meta";
-  meta.textContent = `${post.genreLabel} ・ ${post.prefecture} ・ ${formatDuration(post.durationMin)}`;
+  meta.textContent = [post.genreLabel, post.prefecture].filter(Boolean).join(" ・ ");
 
   const desc = document.createElement("p");
   desc.className = "card__desc";
@@ -660,7 +624,7 @@ function renderPostCard(post, index, likedIds) {
   footer.className = "card__footer";
 
   const footerText = document.createElement("span");
-  footerText.textContent = `${post.authorName} ・ ${formatDate(post.createdAt)}`;
+  footerText.textContent = `${post.authorName} ・ ${formatDateShort(post.createdAt)}`;
 
   const likeBtn = document.createElement("button");
   likeBtn.type = "button";
@@ -670,7 +634,7 @@ function renderPostCard(post, index, likedIds) {
 
   footer.append(footerText, likeBtn);
 
-  body.append(title, meta, desc, footer);
+  body.append(title, duration, meta, desc, footer);
   card.append(media, body);
   return card;
 }
@@ -694,21 +658,10 @@ function renderPostList(posts, likedIds) {
 }
 
 /* ============================================================
-   UTIL
-   ============================================================ */
-function debounce(fn, delay) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
-}
-
-/* ============================================================
    INIT
    ============================================================ */
 document.addEventListener("DOMContentLoaded", () => {
-  const state = { keyword: "", maxBudget: Infinity, genre: "all" };
+  const state = { keyword: "", maxBudget: Infinity, genre: "all", sort: "new" };
   const likedIds = getLikedIds();
 
   // いいねボタンはカードが再描画されるので、親要素への委任で1つのリスナーだけ使う
@@ -742,6 +695,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const keywordInput = document.getElementById("keyword-input");
   const chipButtons = Array.from(document.querySelectorAll(".chip"));
   const genreSelect = document.getElementById("genre-select");
+  const sortSelect = document.getElementById("sort-select");
   const resetButton = document.getElementById("reset-filters");
   const emptyState = document.getElementById("empty-state");
   const fetchError = document.getElementById("fetch-error");
@@ -795,15 +749,22 @@ document.addEventListener("DOMContentLoaded", () => {
     applyFilters();
   });
 
+  sortSelect.addEventListener("change", (event) => {
+    state.sort = event.target.value;
+    applyFilters();
+  });
+
   document.getElementById("retry-btn").addEventListener("click", applyFilters);
 
   resetButton.addEventListener("click", () => {
     state.keyword = "";
     state.maxBudget = Infinity;
     state.genre = "all";
+    state.sort = "new";
 
     keywordInput.value = "";
     genreSelect.value = "all";
+    sortSelect.value = "new";
     chipButtons.forEach((b) => {
       const isAll = b.dataset.maxBudget === "all";
       b.classList.toggle("is-active", isAll);
