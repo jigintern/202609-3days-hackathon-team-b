@@ -356,7 +356,7 @@
   }
   .share-btn:hover { background: var(--bg-soft); }
 
-  /* Report (行ってきましたレポート) */
+  /* Report (コメント) */
   .report-item {
     display: flex;
     gap: 10px;
@@ -556,7 +556,7 @@
   </aside>
 
   <section class="report-section card">
-    <h3>行ってきましたレポート <span class="section-count" id="reportCount"></span></h3>
+    <h3>コメント <span class="section-count" id="reportCount"></span></h3>
     <div id="reportList"></div>
 
     <div class="report-form">
@@ -696,7 +696,7 @@
         <div class="report-body">
           <div class="report-name">${escapeHtml(r.authorName)}</div>
           <div class="report-text">${escapeHtml(r.body)}</div>
-          ${r.imageUrl ? `<img class="report-image" src="${resolveUrl(r.imageUrl)}" alt="レポート画像">` : ""}
+          ${r.imageUrl ? `<img class="report-image" src="${resolveUrl(r.imageUrl)}" alt="コメント画像">` : ""}
           <div class="report-footer">
             <button class="report-like-btn ${isLiked ? "liked" : ""}" data-id="${r.id}">
               ${isLiked ? "❤️" : "🤍"} ${r.likeCount}
@@ -802,7 +802,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body: text, imageUrl }),
       });
-      if (!res.ok) throw new Error("レポートの投稿に失敗しました");
+      if (!res.ok) throw new Error("コメントの投稿に失敗しました");
       const created = await res.json();
       reports = [created, ...reports];
       reportInput.value = "";
