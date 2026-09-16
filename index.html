@@ -527,11 +527,10 @@ async function fetchPosts({ keyword, maxBudget, genre, sort }) {
    ログイン状態（認証がないためlocalStorageのモック）
    ============================================================ */
 // ログイン状態はサーバーのセッション（HttpOnly Cookie）が持っているので /api/auth/me で確認する。
-// Cookie は別オリジンには渡らないため、ここだけは同一オリジンの相対パスを使う。
 let sessionPromise = null;
 function fetchCurrentUser() {
   if (!sessionPromise) {
-    sessionPromise = fetch("/api/auth/me", { credentials: "include" })
+    sessionPromise = fetch(`${API_BASE}/api/auth/me`, { credentials: "include" })
       .then(res => (res.ok ? res.json() : null))
       .then(data => data?.user ?? null)
       .catch(() => null);

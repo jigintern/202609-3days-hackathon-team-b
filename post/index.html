@@ -603,13 +603,16 @@ input:focus, select:focus, textarea:focus {
   const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
   const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+  // 他画面（shared/common.js）と同じく本番APIに固定する。
+  // ローカルで開いた画面からでも叩けるよう、API 側で localhost オリジンの credentials を許可している。
+  const API_BASE = "https://intern-b.tekitou.app";
+
   // ------- ログイン状態（認証がないためlocalStorageのモック） -------
   // ログイン状態はサーバーのセッション（HttpOnly Cookie）が持っているので /api/auth/me で確認する。
-  // Cookie は別オリジンには渡らないため、ここだけは同一オリジンの相対パスを使う。
   let sessionPromise = null;
   function fetchCurrentUser() {
     if (!sessionPromise) {
-      sessionPromise = fetch("/api/auth/me", { credentials: "include" })
+      sessionPromise = fetch(`${API_BASE}/api/auth/me`, { credentials: "include" })
         .then(res => (res.ok ? res.json() : null))
         .then(data => data?.user ?? null)
         .catch(() => null);
@@ -690,8 +693,8 @@ input:focus, select:focus, textarea:focus {
   async function loadOptions() {
     try {
       const [genresRes, prefsRes] = await Promise.all([
-        fetch("/api/genres"),
-        fetch("/api/prefectures")
+        fetch(`${API_BASE}/api/genres`),
+        fetch(`${API_BASE}/api/prefectures`)
       ]);
 
       if (genresRes.ok) {
@@ -926,7 +929,7 @@ input:focus, select:focus, textarea:focus {
       const form = new FormData();
       form.append("file", image.file, image.name);
 
-      const res = await fetch("/api/images", { method: "POST", body: form });
+      const res = await fetch(`${API_BASE}/api/images`, { method: "POST", body: form, credentials: "include" });
       if (!res.ok) {
         throw new Error(await errorMessage(res, `画像「${image.name}」の送信に失敗しました`));
       }
@@ -970,15 +973,17 @@ input:focus, select:focus, textarea:focus {
       });
 
       const res = isEditing
-        ? await fetch(`/api/posts/${encodeURIComponent(state.postId)}`, {
+        ? await fetch(`${API_BASE}/api/posts/${encodeURIComponent(state.postId)}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body
+            body,
+            credentials: "include"
           })
-        : await fetch("/api/posts", {
+        : await fetch(`${API_BASE}/api/posts`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body
+            body,
+            credentials: "include"
           });
 
       if (!res.ok) {
@@ -1026,7 +1031,7 @@ input:focus, select:focus, textarea:focus {
     submitStatus.textContent = "投稿を読み込み中…";
 
     try {
-      const res = await fetch(`/api/posts/${encodeURIComponent(state.postId)}`);
+      const res = await fetch(`${API_BASE}/api/posts/${encodeURIComponent(state.postId)}`);
       if (!res.ok) throw new Error("投稿の取得に失敗しました");
       const post = await res.json();
 
@@ -1041,7 +1046,13 @@ input:focus, select:focus, textarea:focus {
       renderSteps();
 
       // 既存画像は uploadedUrl を埋めておき、送信時の再アップロードをスキップさせる
-      state.images = (post.images || []).map(url => ({ name: url, dataUrl: url, file: null, uploadedUrl: url }));
+      // dataUrl は表示用なので絶対URLに、uploadedUrl は保存される値なので相対のままにする
+      state.images = (post.images || []).map(url => ({
+        name: url,
+        dataUrl: /^https?:\/\//.test(url) ? url : `${API_BASE}${url}`,
+        file: null,
+        uploadedUrl: url
+      }));
       renderImages();
 
       state.genre = post.genre ?? "";
