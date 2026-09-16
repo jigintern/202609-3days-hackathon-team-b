@@ -1,8 +1,8 @@
 // レスポンスとリクエスト解釈の共通処理。
 
 // 読み取り系はどのオリジンからでも呼べるように "*" のままにしている。
-// ただしセッション Cookie は "*" では送れないので、自オリジンと開発用の
-// localhost からのリクエストだけ Origin をそのまま返して credentials を許可する。
+// ただしセッション Cookie は "*" では送れないので、自オリジンからのリクエストだけ
+// Origin をそのまま返して credentials を許可する。
 // 各ヘルパはこの既定値を載せ、index.ts の withCors で最終的に上書きする。
 export const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +11,7 @@ export const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Max-Age": "86400",
 };
 
+const LOCALHOST = /^(localhost|127\.0\.0\.1)$/;
 const LOCALHOST_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 /** リクエスト元に応じた CORS ヘッダを組み立てる */
@@ -18,8 +19,15 @@ export function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get("Origin");
   if (!origin) return CORS_HEADERS;
 
-  const sameOrigin = origin === new URL(request.url).origin;
-  if (!sameOrigin && !LOCALHOST_ORIGIN.test(origin)) return CORS_HEADERS;
+  const url = new URL(request.url);
+  const sameOrigin = origin === url.origin;
+
+  // wrangler dev はポートが変わることがあるので、
+  // Worker 自身が localhost のときだけ別ポートの localhost も許可する。
+  // 本番ドメインではこの分岐に入らないため、自オリジン以外に Cookie は渡らない
+  const devOrigin = LOCALHOST.test(url.hostname) && LOCALHOST_ORIGIN.test(origin);
+
+  if (!sameOrigin && !devOrigin) return CORS_HEADERS;
 
   return {
     ...CORS_HEADERS,
