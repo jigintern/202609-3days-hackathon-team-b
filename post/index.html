@@ -589,6 +589,16 @@ input:focus, select:focus, textarea:focus {
   const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
   const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+  // ------- ログイン状態（認証がないためlocalStorageのモック） -------
+  const CURRENT_USER_KEY = "oshipi:currentUser";
+  function isLoggedIn() {
+    try {
+      return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) ?? "null") !== null;
+    } catch {
+      return false;
+    }
+  }
+
   // ------- 状態 -------
   const state = {
     genre: "",
@@ -891,6 +901,12 @@ input:focus, select:focus, textarea:focus {
   document.getElementById("postForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (state.submitting || submitBtn.disabled) return;
+
+    if (!isLoggedIn()) {
+      submitStatus.textContent = "ログインが必要です";
+      submitStatus.style.color = "var(--danger)";
+      return;
+    }
 
     let post;
     try {
