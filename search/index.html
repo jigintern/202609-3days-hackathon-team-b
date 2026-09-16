@@ -192,6 +192,26 @@ fieldset { border: none; padding: 0; margin: 0; }
   margin: 8px 0 0;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.checkbox-row input {
+  accent-color: var(--accent-dark);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+/* input:focus で outline を消しているので、キーボード操作時の枠線を戻す */
+.checkbox-row input:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
 input[type="text"],
 input[type="number"] {
   width: 100%;
@@ -534,6 +554,10 @@ input:focus { outline: none; border-color: var(--accent-dark); }
           </div>
         </div>
         <p class="field-error" id="budget-error" role="alert" hidden>最低予算は最高予算以下にしてください</p>
+        <label class="checkbox-row">
+          <input type="checkbox" id="include-null-budget" checked>
+          <span>予算未設定の投稿も表示する</span>
+        </label>
       </fieldset>
 
       <!-- ジャンル一覧は GET /api/genres から取得。複数選択でOR絞り込み（APIのgenreパラメータに準拠） -->
@@ -642,6 +666,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   const filterState = {
     budgetMin: null,
     budgetMax: null,
+    includeNullBudget: true,
     genres: new Set(),
     tags: [],
   };
@@ -790,14 +815,39 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     return isValid;
   }
 
+  /* APIに budgetMin/budgetMax を渡すと、SQLのNULL比較で予算未設定(budget: null)の投稿が
+     必ず除外される。「予算未設定の投稿も表示する」がONで予算が入力されているときだけ、
+     予算条件をAPIに渡さずに取得し、手元で絞り込む */
+  function filtersBudgetOnClient() {
+    return filterState.includeNullBudget
+      && (filterState.budgetMin !== null || filterState.budgetMax !== null);
+  }
+
   function buildSearchParams() {
     const params = new URLSearchParams();
-    if (filterState.budgetMin !== null) params.set("budgetMin", String(filterState.budgetMin));
-    if (filterState.budgetMax !== null) params.set("budgetMax", String(filterState.budgetMax));
+    if (!filtersBudgetOnClient()) {
+      if (filterState.budgetMin !== null) params.set("budgetMin", String(filterState.budgetMin));
+      if (filterState.budgetMax !== null) params.set("budgetMax", String(filterState.budgetMax));
+    }
     if (filterState.genres.size > 0) params.set("genre", [...filterState.genres].join(","));
     if (filterState.tags.length > 0) params.set("tags", filterState.tags.join(","));
     params.set("limit", "100"); // ページングUIが無いので、上限いっぱいまで一度に取得する
     return params;
+  }
+
+  function filterByBudgetOnClient(data) {
+    if (!filtersBudgetOnClient()) return data;
+
+    const { budgetMin, budgetMax } = filterState;
+    const posts = data.posts.filter((post) => {
+      if (post.budget === null) return true; // 予算未設定は残す
+      if (budgetMin !== null && post.budget < budgetMin) return false;
+      if (budgetMax !== null && post.budget > budgetMax) return false;
+      return true;
+    });
+
+    // 予算条件をAPIに渡していないぶん data.total は絞り込み前の件数なので数え直す
+    return { ...data, posts, total: posts.length };
   }
 
   /* ============================================================
@@ -830,7 +880,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       if (!res.ok) throw new Error(`検索に失敗しました (${res.status})`);
       const data = await res.json();
       if (seq !== requestSeq) return;
-      render(data);
+      render(filterByBudgetOnClient(data));
     } catch (err) {
       if (seq !== requestSeq) return;
       console.error(err);
@@ -914,11 +964,13 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   function resetFilters() {
     filterState.budgetMin = null;
     filterState.budgetMax = null;
+    filterState.includeNullBudget = true;
     filterState.genres.clear();
     filterState.tags = [];
 
     document.getElementById("budget-min").value = "";
     document.getElementById("budget-max").value = "";
+    document.getElementById("include-null-budget").checked = true;
     document.getElementById("tag-input").value = "";
     document.querySelectorAll("#genre-chip-group .chip").forEach((c) => {
       c.classList.remove("is-active");
@@ -949,6 +1001,12 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     budgetMax.addEventListener("input", () => {
       filterState.budgetMax = budgetMax.value === "" ? null : Number(budgetMax.value);
       debouncedApply();
+    });
+
+    const includeNullBudget = document.getElementById("include-null-budget");
+    includeNullBudget.addEventListener("change", () => {
+      filterState.includeNullBudget = includeNullBudget.checked;
+      applyFilters();
     });
 
     tagInput.addEventListener("keydown", (e) => {
