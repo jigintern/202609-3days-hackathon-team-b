@@ -1,9 +1,8 @@
 // 「行ってきましたレポート」のハンドラ。
 
-import type { Env } from "./types";
-import { randomName } from "./types";
+import type { Env, User } from "./types";
 import * as db from "./db";
-import { error, json, noContent, optStr, readJson, str } from "./http";
+import { error, json, noContent, readJson, str } from "./http";
 
 /** GET /api/posts/:id/reports */
 export async function listReports(postId: string, env: Env): Promise<Response> {
@@ -13,7 +12,12 @@ export async function listReports(postId: string, env: Env): Promise<Response> {
 }
 
 /** POST /api/posts/:id/reports */
-export async function createReport(postId: string, request: Request, env: Env): Promise<Response> {
+export async function createReport(
+  postId: string,
+  request: Request,
+  env: Env,
+  user: User,
+): Promise<Response> {
   if (!(await db.postExists(env, postId))) return error("投稿が見つかりません", 404);
 
   const body = await readJson(request);
@@ -26,7 +30,9 @@ export async function createReport(postId: string, request: Request, env: Env): 
 
   const id = await db.createReport(env, {
     postId,
-    authorName: optStr(body.authorName, 20) || randomName(),
+    // 投稿者名はログイン中のユーザーの表示名で固定する
+    authorName: user.displayName,
+    userId: user.id,
     body: text,
     imageUrl: imageUrl || null,
   });
@@ -35,13 +41,16 @@ export async function createReport(postId: string, request: Request, env: Env): 
 }
 
 /** DELETE /api/reports/:id */
-export async function deleteReport(id: string, env: Env): Promise<Response> {
-  if (!(await db.reportExists(env, id))) return error("レポートが見つかりません", 404);
+export async function deleteReport(id: string, env: Env, user: User): Promise<Response> {
+  const existing = await db.getReport(env, id);
+  if (!existing) return error("レポートが見つかりません", 404);
+  if (existing.userId !== user.id) return error("このレポートは削除できません", 403);
   await db.deleteReport(env, id);
   return noContent();
 }
 
 /** POST /api/reports/:id/like, DELETE /api/reports/:id/like */
+// いいねは投稿と同じく「誰が押したか」を持たない単純なカウンタ
 export async function toggleReportLike(id: string, env: Env, like: boolean): Promise<Response> {
   if (!(await db.reportExists(env, id))) return error("レポートが見つかりません", 404);
   const likeCount = await db.addReportLike(env, id, like ? 1 : -1);

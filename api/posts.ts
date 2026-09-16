@@ -1,7 +1,7 @@
 // 投稿のハンドラ。
 
-import type { Env } from "./types";
-import { GENRE_KEYS, PREFECTURES, randomName } from "./types";
+import type { Env, User } from "./types";
+import { GENRE_KEYS, PREFECTURES } from "./types";
 import * as db from "./db";
 import {
   error, intParam, json, listParam, noContent,
@@ -48,7 +48,7 @@ export async function getPost(id: string, env: Env): Promise<Response> {
 }
 
 /** POST /api/posts */
-export async function createPost(request: Request, env: Env): Promise<Response> {
+export async function createPost(request: Request, env: Env, user: User): Promise<Response> {
   const body = await readJson(request);
   if (!body) return error("JSON ボディが必要です", 400);
 
@@ -79,8 +79,9 @@ export async function createPost(request: Request, env: Env): Promise<Response> 
     prefecture,
     durationMin: optInt(body.durationMin, 0, 10080),
     budget: optInt(body.budget, 0, 1000000),
-    // 未指定なら「ゆかいなカワウソ42」のような名前を割り当てる
-    authorName: optStr(body.authorName, 20) || randomName(),
+    // 投稿者名はログイン中のユーザーの表示名で固定する
+    authorName: user.displayName,
+    userId: user.id,
     images,
     steps: strArray(body.steps, 30, 120),
     materials: strArray(body.materials, 30, 120),
@@ -91,8 +92,15 @@ export async function createPost(request: Request, env: Env): Promise<Response> 
 }
 
 /** PATCH /api/posts/:id */
-export async function updatePost(id: string, request: Request, env: Env): Promise<Response> {
-  if (!(await db.postExists(env, id))) return error("投稿が見つかりません", 404);
+export async function updatePost(
+  id: string,
+  request: Request,
+  env: Env,
+  user: User,
+): Promise<Response> {
+  const existing = await db.getPost(env, id);
+  if (!existing) return error("投稿が見つかりません", 404);
+  if (existing.userId !== user.id) return error("この投稿は編集できません", 403);
 
   const body = await readJson(request);
   if (!body) return error("JSON ボディが必要です", 400);
@@ -132,7 +140,7 @@ export async function updatePost(id: string, request: Request, env: Env): Promis
   }
 
   if ("tip" in body) patch.tip = optStr(body.tip, 200);
-  if ("authorName" in body) patch.authorName = optStr(body.authorName, 20) || randomName();
+  // authorName はユーザーの表示名に紐づくので、ここでは変更させない
   if ("durationMin" in body) patch.durationMin = optInt(body.durationMin, 0, 10080);
   if ("budget" in body) patch.budget = optInt(body.budget, 0, 1000000);
   if ("steps" in body) patch.steps = strArray(body.steps, 30, 120);
@@ -146,13 +154,17 @@ export async function updatePost(id: string, request: Request, env: Env): Promis
 }
 
 /** DELETE /api/posts/:id */
-export async function deletePost(id: string, env: Env): Promise<Response> {
-  if (!(await db.postExists(env, id))) return error("投稿が見つかりません", 404);
+export async function deletePost(id: string, env: Env, user: User): Promise<Response> {
+  const existing = await db.getPost(env, id);
+  if (!existing) return error("投稿が見つかりません", 404);
+  if (existing.userId !== user.id) return error("この投稿は削除できません", 403);
   await db.deletePost(env, id);
   return noContent();
 }
 
 /** POST /api/posts/:id/like, DELETE /api/posts/:id/like */
+// ログイン必須だが「誰が押したか」は保持しない単純なカウンタのまま。
+// 二重いいねの防止はフロント側（localStorage）の担当
 export async function togglePostLike(id: string, env: Env, like: boolean): Promise<Response> {
   if (!(await db.postExists(env, id))) return error("投稿が見つかりません", 404);
   const likeCount = await db.addPostLike(env, id, like ? 1 : -1);
