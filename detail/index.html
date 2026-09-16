@@ -355,6 +355,18 @@
     color: var(--text);
   }
   .share-btn:hover { background: var(--bg-soft); }
+  .edit-btn {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .edit-btn:hover { background: var(--bg-soft); }
 
   /* Report (コメント) */
   .report-item {
@@ -561,6 +573,10 @@
       </button>
       <button class="share-btn" id="shareBtn">📤 共有する</button>
     </div>
+
+    <div class="card owner-card" id="ownerCard" hidden>
+      <button class="edit-btn" id="editBtn">編集する</button>
+    </div>
   </aside>
 
   <section class="report-section card">
@@ -652,6 +668,12 @@
     return /^https?:\/\//.test(url) ? url : `${API_BASE}${url}`;
   }
 
+  // 認証・投稿者ひも付け未実装のため、現状は常に編集可能扱いのモック。
+  // 認証実装後は post.authorId === currentUserId 等に差し替える。
+  function canEditPost(targetPost) {
+    return true;
+  }
+
   async function uploadImage(file) {
     const formData = new FormData();
     formData.append("file", file);
@@ -701,6 +723,8 @@
 
     document.getElementById("tipText").textContent = post.tip || "";
     document.getElementById("tipCard").style.display = post.tip ? "flex" : "none";
+
+    document.getElementById("ownerCard").hidden = !canEditPost(post);
 
     updateLikeUI();
   }
@@ -773,6 +797,11 @@
       } catch (err) { /* クリップボード権限なし → フォールバック */ }
     }
     alert(location.href);
+  });
+
+  document.getElementById("editBtn").addEventListener("click", () => {
+    if (!post) return;
+    location.href = `../post/index.html?id=${encodeURIComponent(post.id)}`;
   });
 
   // いいねボタンはレポートを再描画するたびに増えるので、
