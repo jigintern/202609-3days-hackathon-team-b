@@ -186,6 +186,12 @@ fieldset { border: none; padding: 0; margin: 0; }
   padding-top: 18px;
 }
 
+.field-error {
+  color: var(--danger);
+  font-size: 0.8rem;
+  margin: 8px 0 0;
+}
+
 input[type="text"],
 input[type="number"] {
   width: 100%;
@@ -516,6 +522,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
             <input type="number" id="budget-max" name="budgetMax" min="0" step="100" placeholder="上限なし" inputmode="numeric">
           </div>
         </div>
+        <p class="field-error" id="budget-error" role="alert" hidden>最低予算は最高予算以下にしてください</p>
       </fieldset>
 
       <!-- ジャンル一覧は GET /api/genres から取得。複数選択でOR絞り込み（APIのgenreパラメータに準拠） -->
@@ -733,6 +740,27 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     renderGenreChips();
   }
 
+  /* ============================================================
+     予算範囲のバリデーション（最低 > 最高だと必ず0件になるため、
+     検索を投げる前にフロント側で気づけるようにする）
+     ============================================================ */
+  function updateBudgetRangeUI() {
+    const budgetMinInput = document.getElementById("budget-min");
+    const budgetMaxInput = document.getElementById("budget-max");
+    const errorEl = document.getElementById("budget-error");
+    const { budgetMin, budgetMax } = filterState;
+
+    const isValid = !(budgetMin !== null && budgetMax !== null && budgetMin > budgetMax);
+    errorEl.hidden = isValid;
+
+    // 逆転入力をしにくくする（スピンボタン操作時のガード。直接入力までは防げない）
+    if (budgetMax !== null) budgetMinInput.max = String(budgetMax);
+    else budgetMinInput.removeAttribute("max");
+    budgetMaxInput.min = budgetMin !== null ? String(budgetMin) : "0";
+
+    return isValid;
+  }
+
   function buildSearchParams() {
     const params = new URLSearchParams();
     if (filterState.budgetMin !== null) params.set("budgetMin", String(filterState.budgetMin));
@@ -747,12 +775,22 @@ input:focus { outline: none; border-color: var(--accent-dark); }
      FILTER / FETCH
      ============================================================ */
   async function applyFilters() {
-    const seq = ++requestSeq;
     const grid = document.getElementById("results-grid");
     const emptyState = document.getElementById("empty-state");
     const fetchError = document.getElementById("fetch-error");
     const countEl = document.getElementById("results-count");
 
+    if (!updateBudgetRangeUI()) {
+      // 予算の範囲が逆転していて必ず0件になるので、検索自体を送らない
+      grid.innerHTML = "";
+      grid.hidden = true;
+      emptyState.hidden = true;
+      fetchError.hidden = true;
+      countEl.textContent = "";
+      return;
+    }
+
+    const seq = ++requestSeq;
     emptyState.hidden = true;
     fetchError.hidden = true;
     countEl.textContent = "検索中…";
