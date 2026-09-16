@@ -21,12 +21,15 @@ const PASSWORD_MAX = 72;
 // ------------------------------------------------------------
 // Cookie
 // ------------------------------------------------------------
-// 静的アセットと Worker が同一オリジンで配信されるので SameSite=Lax で足りる。
+// ハッカソン用の割り切りで、ローカルで開いた画面から本番 API を叩けるようにしている。
+// クロスサイトでも Cookie を送るため https では SameSite=None; Secure を使う。
+// （SameSite=None は Secure 必須なので、http の wrangler dev では Lax のまま）
 
-/** wrangler dev は http なので、そのときだけ Secure を外す */
+/** wrangler dev は http なので、そのときだけ Secure を外して Lax に落とす */
 function cookieAttributes(request: Request, maxAge: number): string {
-  const secure = new URL(request.url).protocol === "https:" ? " Secure;" : "";
-  return `Path=/; HttpOnly;${secure} SameSite=Lax; Max-Age=${maxAge}`;
+  const isHttps = new URL(request.url).protocol === "https:";
+  const sameSite = isHttps ? "None; Secure;" : "Lax;";
+  return `Path=/; HttpOnly; SameSite=${sameSite} Max-Age=${maxAge}`;
 }
 
 function sessionCookie(request: Request, token: string): string {
