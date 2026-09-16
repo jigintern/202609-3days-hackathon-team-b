@@ -583,12 +583,12 @@ input:focus { outline: none; border-color: var(--accent-dark); }
         <div class="budget-row">
           <div class="budget-field">
             <label for="duration-min">最短 (分)</label>
-            <input type="number" id="duration-min" name="durationMin" min="0" step="10" placeholder="0" inputmode="numeric">
+            <input type="number" id="duration-min" name="durationMin" min="0" step="5" placeholder="0" inputmode="numeric">
           </div>
           <span class="budget-sep" aria-hidden="true">〜</span>
           <div class="budget-field">
             <label for="duration-max">最長 (分)</label>
-            <input type="number" id="duration-max" name="durationMax" min="0" step="10" placeholder="上限なし" inputmode="numeric">
+            <input type="number" id="duration-max" name="durationMax" min="0" step="5" placeholder="上限なし" inputmode="numeric">
           </div>
         </div>
         <p class="field-error" id="duration-error" role="alert" hidden>最短の時間は最長の時間以下にしてください</p>
@@ -802,28 +802,45 @@ input:focus { outline: none; border-color: var(--accent-dark); }
       filterState.durationMin, filterState.durationMax);
   }
 
-  /* APIに budgetMin/budgetMax を渡すと、SQLのNULL比較で予算未設定(budget: null)の投稿が
-     必ず除外される。「予算未設定の投稿も表示する」がONで予算が入力されているときだけ、
-     予算条件をAPIに渡さずに取得し、手元で絞り込む */
-  function filtersBudgetOnClient() {
-    return filterState.includeNullBudget
+  /* APIの budgetMin/budgetMax・durationMax は、SQLのNULL比較の都合で
+     「値が設定済みの投稿だけを返す」絞り込みになる。欲しい条件がそれと一致するときだけ
+     APIに任せ、それ以外（未設定も残したい・APIに無い最短の指定）は手元で絞り込む */
+
+  /** 範囲が指定されていて未設定も除外したいなら、APIの絞り込みと結果が一致する */
+  function canDelegateBudgetToApi() {
+    return !filterState.includeNullBudget
       && (filterState.budgetMin !== null || filterState.budgetMax !== null);
   }
 
-  /* APIには durationMax しか無いので、最短を指定したときは必ず手元で絞り込む。
-     「時間未設定も表示する」がONのときは、予算と同じ理由で durationMax も渡せない */
+  function filtersBudgetOnClient() {
+    const hasFilter = filterState.budgetMin !== null
+      || filterState.budgetMax !== null
+      || !filterState.includeNullBudget;
+    return hasFilter && !canDelegateBudgetToApi();
+  }
+
+  /** APIには durationMax しか無いので、最短の指定が無く、最長が指定されていて、
+   *  かつ時間未設定も除外したいときだけ任せられる */
+  function canDelegateDurationToApi() {
+    return filterState.durationMin === null
+      && filterState.durationMax !== null
+      && !filterState.includeNullDuration;
+  }
+
   function filtersDurationOnClient() {
-    return filterState.durationMin !== null
-      || (filterState.includeNullDuration && filterState.durationMax !== null);
+    const hasFilter = filterState.durationMin !== null
+      || filterState.durationMax !== null
+      || !filterState.includeNullDuration;
+    return hasFilter && !canDelegateDurationToApi();
   }
 
   function buildSearchParams() {
     const params = new URLSearchParams();
-    if (!filtersBudgetOnClient()) {
+    if (canDelegateBudgetToApi()) {
       if (filterState.budgetMin !== null) params.set("budgetMin", String(filterState.budgetMin));
       if (filterState.budgetMax !== null) params.set("budgetMax", String(filterState.budgetMax));
     }
-    if (!filtersDurationOnClient() && filterState.durationMax !== null) {
+    if (canDelegateDurationToApi()) {
       params.set("durationMax", String(filterState.durationMax));
     }
     if (filterState.genres.size > 0) params.set("genre", [...filterState.genres].join(","));
@@ -833,7 +850,7 @@ input:focus { outline: none; border-color: var(--accent-dark); }
   }
 
   function matchesBudget(post) {
-    if (post.budget === null) return true; // 予算未設定は残す
+    if (post.budget === null) return filterState.includeNullBudget;
     const { budgetMin, budgetMax } = filterState;
     if (budgetMin !== null && post.budget < budgetMin) return false;
     if (budgetMax !== null && post.budget > budgetMax) return false;
@@ -875,6 +892,8 @@ input:focus { outline: none; border-color: var(--accent-dark); }
     const budgetOk = updateBudgetRangeUI();
     const durationOk = updateDurationRangeUI();
     if (!budgetOk || !durationOk) {
+      // 実行中の検索が後から結果を描画してしまわないよう、連番を進めて無効化する
+      requestSeq++;
       grid.innerHTML = "";
       grid.hidden = true;
       emptyState.hidden = true;
